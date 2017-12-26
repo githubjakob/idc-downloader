@@ -80,11 +80,9 @@ public class HTTPRangeGetter implements Runnable {
             outQueue.add(chunk);
             System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
             offset += bytesRead;
-            IdcDm.DOWNLOADING.set(true);
         }
 
         //System.out.println("HttpRangeGetter completed");
-        IdcDm.DOWNLOADING.set(false);
 
         out.close();
         in.close();
@@ -100,8 +98,6 @@ public class HTTPRangeGetter implements Runnable {
             System.err.println("HTTPRangeGetter: Error ocurred during downloading, failing safely...");
             e.printStackTrace();
             //TODO
-        } finally {
-            IdcDm.DOWNLOADING.set(false);
         }
     }
 

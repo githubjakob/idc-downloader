@@ -24,8 +24,13 @@ public class FileWriter implements Runnable {
         File file = new File("./movie.avi");
         RandomAccessFile downloadFile = new RandomAccessFile(file, "rw");
 
-        while (IdcDm.DOWNLOADING.get()) {
-            Chunk chunk = chunkQueue.take();
+        while (true) {
+            final Chunk chunk = chunkQueue.take();
+
+            if (chunk.isFinishedMarker()) {
+                break;
+            }
+
             long pointerBefore = chunk.getOffset();
             downloadFile.seek(chunk.getOffset()); // set the pointer to the end of the last data chunk
 
@@ -36,8 +41,8 @@ public class FileWriter implements Runnable {
             downloadFile.seek(pointerAfter); // set the pointer to the end of the last data chunk
 
             downloadableMetadata.updateDownloadedRange(pointerBefore, pointerAfter);
-
         }
+        System.out.println("FileWriter: Found finished marker in queue, closing file.");
         downloadFile.close();
     }
 

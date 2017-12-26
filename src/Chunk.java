@@ -4,6 +4,15 @@
  * Contains an offset, bytes of data, and size
  */
 class Chunk {
+
+    enum Type {
+
+        FINISHED_MARKER,
+
+        REGULAR
+    }
+
+    private Type type = Type.REGULAR;
     private byte[] data;
     private long offset; //from beginning of file, ie. number of startbyte
     private int size_in_bytes; // we need this because the data array is not guaranteed to be fully filled
@@ -24,6 +33,14 @@ class Chunk {
 
     int getSize_in_bytes() {
         return size_in_bytes;
+    }
+
+    void setAsFinishedMarker() {
+        type = Type.FINISHED_MARKER;
+    }
+
+    boolean isFinishedMarker() {
+        return this.type.equals(Type.FINISHED_MARKER);
     }
 
     @Override

@@ -55,6 +55,8 @@ public class DownloadableMetadata {
         return filename;
     }
 
+    long getFileSize() {return fileSize; }
+
     boolean isCompleted() {
         //TODO
         return false;
@@ -127,18 +129,18 @@ public class DownloadableMetadata {
     }
 
     public void validateDownload() {
-        try {
-            Thread.currentThread().sleep(1000L);
+        try { // wait to make sure all threads are terminated
+            Thread.currentThread().sleep(20L);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         updateDownloadedRanges();
         List<Range> ranges = getMissingRanges();
 
-        if (ranges.size() != 0) {
-            System.err.println("File not completely downloaded");
+        if (ranges.size() == 0) {
+            System.out.println("DownloadableMetadata: File is valid.");
         } else {
-            System.out.println("File downloaded completely");
+            System.err.println("DownloadableMetadata: File is not valid.");
         }
     }
 }

@@ -3,11 +3,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IdcDm {
-
-    public static final AtomicBoolean DOWNLOADING = new AtomicBoolean(true);
 
     /**
      * Receive arguments from the command-line, provide some feedback and start the download.
@@ -60,8 +57,8 @@ public class IdcDm {
 
 
         try {
-            //url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
-            url = new URL("http://ia600303.us.archive.org/19/items/Mario1_500/Mario1_500.avi");
+            url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
+            //url = new URL("http://ia600303.us.archive.org/19/items/Mario1_500/Mario1_500.avi");
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
@@ -120,9 +117,13 @@ public class IdcDm {
             }
         }
 
+        // send finished marker to queue
+        Chunk finishedChunk = new Chunk(null, 0, 0);
+        finishedChunk.setAsFinishedMarker();
+        queue.add(finishedChunk);
         // validate download
         downloadableMetadata.validateDownload();
-        System.out.println("done");
+        System.out.println("IdcDm: Done");
 
     }
 }
