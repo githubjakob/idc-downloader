@@ -1,5 +1,6 @@
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -81,6 +82,9 @@ public class IdcDm {
         int workersPerMissingRange = numberOfWorkers / missingRanges.size();
 
         // iterate over the missing ranges
+
+        List<Thread> downloadThreads = new ArrayList<>();
+
         for (int n = 0; n < missingRanges.size(); n++) {
             Range missingRange = missingRanges.get(n);
 
@@ -102,12 +106,18 @@ public class IdcDm {
                         workerRange,
                         queue,
                         null));
+                downloadThreads.add(downloadThread);
                 downloadThread.start();
             }
         }
 
-        while (IdcDm.DOWNLOADING.get()) {
-            // wait until the download is finished
+        // wait until all threads have completed
+        for (Thread thread : downloadThreads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         // validate download

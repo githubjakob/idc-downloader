@@ -30,12 +30,7 @@ public class HTTPRangeGetter implements Runnable {
 
     private void downloadRange() throws IOException {
 
-        //String host = "www.engr.colostate.edu";
-        //String path = "/me/facil/dynamics/files/drop.avi";
-
-        Socket socket = null;
-
-        socket = new Socket(url.getHost(), 80);
+        Socket socket = new Socket(url.getHost(), 80);
 
         //socket.setSoTimeout(READ_TIMEOUT);
 
@@ -83,7 +78,7 @@ public class HTTPRangeGetter implements Runnable {
 
             final Chunk chunk = new Chunk(buffer, offset, bytesRead);
             outQueue.add(chunk);
-            //System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
+            System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
             offset += bytesRead;
             IdcDm.DOWNLOADING.set(true);
         }
