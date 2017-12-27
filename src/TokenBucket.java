@@ -10,26 +10,37 @@
  * - terminated(): return true if the bucket is terminated, false otherwise
  *
  */
+
+import java.util.concurrent.atomic.*;
+
 class TokenBucket {
 
+	AtomicLong tokensAvailable;
+	boolean termination;
+	
     TokenBucket() {
         //TODO
+    	tokensAvailable = new AtomicLong();
+    	termination = false;
     }
 
     void take(long tokens) {
         //TODO
+    	tokensAvailable.addAndGet(-tokens);
     }
 
     void terminate() {
         //TODO
+    	termination = false;
     }
 
     boolean terminated() {
         //TODO
-        return false;
+        return termination == true;
     }
 
     void set(long tokens) {
         //TODO
+    	tokensAvailable.set(tokens);
     }
 }
