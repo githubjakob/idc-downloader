@@ -13,8 +13,36 @@ public class RateLimiter implements Runnable {
         this.maxBytesPerSecond = maxBytesPerSecond;
     }
 
+    // I AM NOT SURE WHAT SHOULD BE THE CONDITION TO STOP THIS THREAD
+    
     @Override
     public void run() {
         //TODO
+    	
+    	// I ASSUMED THAT WHETHER OR NOT maxBytesPerSecond IS NULL DECIDES IF IT'S SOFT OR HARD
+    	
+    	if (maxBytesPerSecond != null) {
+    		while (true) {
+	    		tokenBucket.set(maxBytesPerSecond);
+	    		try {
+					Thread.sleep(1000); // adding maxBps to token bucket every second
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}	
+    		}
+    		
+    	} else {
+    		// TODO set the maxBytesPerSecond to something
+    		while (true) {
+	    		tokenBucket.set(tokenBucket.tokensAvailable.addAndGet(maxBytesPerSecond));
+	    		try {
+					Thread.sleep(1000); // adding maxBps to token bucket every second
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}	
+    		}
+    	}
     }
 }

@@ -64,7 +64,7 @@ public class IdcDm {
         }
 
         // setup singletons
-        BlockingQueue queue = new ArrayBlockingQueue<Chunk>(1000, true);
+        BlockingQueue<Chunk> queue = new ArrayBlockingQueue<Chunk>(1000, true);
 
         // get the filesize
         HttpHeadGetter httpHeadGetter = new HttpHeadGetter(url);
@@ -75,6 +75,13 @@ public class IdcDm {
         Thread fileWriter = new Thread(new FileWriter(downloadableMetadata, queue));
         fileWriter.start();
 
+        /* TODO Need to setup the RateLimiter. 
+         * If maxBytesPerSecond is null then we need to choose some default download speed, or choose one somehow (Inside RateLimiter)
+         * 
+         * I DON'T UNDERSTAND WHAT DECIDES IF WE HAVE A HARD OR SOFT LIMITER. SO I DON'T KNOW WHAT WILL DIFFERENTIATE
+         * IT IN THE RateLimiter. IS IT WHETHER OR NOT maxBytesPerSecond IS Null?  
+         */ 
+        
         final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
         int workersPerMissingRange = numberOfWorkers / missingRanges.size();
 
