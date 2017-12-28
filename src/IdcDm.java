@@ -35,7 +35,7 @@ public class IdcDm {
 
         DownloadURL(url, numberOfWorkers, maxBytesPerSecond);*/
 
-        DownloadURL(null, 0, 0L);
+        DownloadURL(null, 0, 10L);
     }
 
     /**
@@ -65,6 +65,8 @@ public class IdcDm {
 
         // setup singletons
         BlockingQueue<Chunk> queue = new ArrayBlockingQueue<Chunk>(1000, true);
+        TokenBucket tokenBucket = new TokenBucket();
+        Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
 
         // get the filesize
         HttpHeadGetter httpHeadGetter = new HttpHeadGetter(url);
@@ -109,7 +111,7 @@ public class IdcDm {
                         url,
                         workerRange,
                         queue,
-                        null));
+                        tokenBucket));
                 downloadThreads.add(downloadThread);
                 downloadThread.start();
             }

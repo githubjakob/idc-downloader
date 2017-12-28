@@ -70,6 +70,7 @@ public class HTTPRangeGetter implements Runnable {
         long offset = this.range.getStart();
 
         while(true){
+        	tokenBucket.take(CHUNK_SIZE);
             bytesRead = inputStream.read(buffer, 0, CHUNK_SIZE);
 
             if (bytesRead == -1) {

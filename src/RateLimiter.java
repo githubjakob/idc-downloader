@@ -10,7 +10,7 @@ public class RateLimiter implements Runnable {
 
     RateLimiter(TokenBucket tokenBucket, Long maxBytesPerSecond) {
         this.tokenBucket = tokenBucket;
-        this.maxBytesPerSecond = maxBytesPerSecond;
+        this.maxBytesPerSecond = (maxBytesPerSecond == null) ? Long.MAX_VALUE : maxBytesPerSecond;
     }
 
     // I AM NOT SURE WHAT SHOULD BE THE CONDITION TO STOP THIS THREAD
@@ -21,28 +21,24 @@ public class RateLimiter implements Runnable {
     	
     	// I ASSUMED THAT WHETHER OR NOT maxBytesPerSecond IS NULL DECIDES IF IT'S SOFT OR HARD
     	
-    	if (maxBytesPerSecond != null) {
-    		while (true) {
-	    		tokenBucket.set(maxBytesPerSecond);
-	    		try {
-					Thread.sleep(1000); // adding maxBps to token bucket every second
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}	
-    		}
-    		
-    	} else {
-    		// TODO set the maxBytesPerSecond to something
-    		while (true) {
-	    		tokenBucket.set(tokenBucket.tokensAvailable.addAndGet(maxBytesPerSecond));
-	    		try {
-					Thread.sleep(1000); // adding maxBps to token bucket every second
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}	
-    		}
-    	}
+		while (true) {
+			if (tokenBucket.terminated()) return;
+			// use soft limiter if maxBytesPerSecond smaller than chunk size
+			if (maxBytesPerSecond < HTTPRangeGetter.CHUNK_SIZE) {
+				tokenBucket.add(maxBytesPerSecond);
+				
+			// otherwise use hard limiter
+			} else {
+				tokenBucket.set(maxBytesPerSecond);
+			}
+    		try {
+				Thread.sleep(1000); // adding maxBps to token bucket every second
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
+		}
+    	
+    
     }
 }
