@@ -13,7 +13,6 @@ import java.util.*;
 public class DownloadableMetadata {
     private String metadataFilename;
     private String filename;
-    private URL url;
     private long fileSize;
 
     List<Range> downloadedRanges = new ArrayList<>();
@@ -23,11 +22,7 @@ public class DownloadableMetadata {
     TreeMap<Long, Long> pointers = new TreeMap<>();
 
     DownloadableMetadata(URL url, long fileSize) {
-
-        this.url = url;
-
-        // TODO fix this
-        this.filename = "movie.avi";
+        this.filename = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
 
         this.fileSize = fileSize;
 
@@ -35,15 +30,10 @@ public class DownloadableMetadata {
          * lower border is: -1 and upper border is: file size */
         this.addRange(new Range(fileSize, fileSize));
         this.addRange(new Range(-1L, 0L));
-
     }
 
     private static String getMetadataName(String filename) {
         return filename + ".metadata";
-    }
-
-    private static String getName(String path) {
-        return path.substring(path.lastIndexOf('/') + 1, path.length());
     }
 
     public void addRange(Range range) {
@@ -108,10 +98,6 @@ public class DownloadableMetadata {
             }
 
         }
-    }
-
-    URL getUrl() {
-        return url;
     }
 
     public void addPointer(long rangeStart) {

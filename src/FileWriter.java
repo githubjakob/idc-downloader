@@ -21,7 +21,7 @@ public class FileWriter implements Runnable {
     }
 
     private void writeChunks() throws IOException, InterruptedException {
-        File file = new File("./movie.avi");
+        File file = new File(downloadableMetadata.getFilename());
         RandomAccessFile downloadFile = new RandomAccessFile(file, "rw");
 
         while (true) {

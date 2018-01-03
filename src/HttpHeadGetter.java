@@ -1,10 +1,6 @@
-import java.io.*;
+import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.ProtocolException;
-import java.net.Socket;
 import java.net.URL;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Only gets the header of the file we want to download

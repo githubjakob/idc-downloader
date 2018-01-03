@@ -1,8 +1,7 @@
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.Socket;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.concurrent.BlockingQueue;
 
 /**
@@ -70,9 +69,9 @@ public class HTTPRangeGetter implements Runnable {
         try {
             this.downloadRange();
         } catch (IOException e) {
-            System.err.println("HTTPRangeGetter: Error ocurred during downloading");
-            e.printStackTrace();
-            //TODO
+            System.err.println("HTTPRangeGetter: IOException occurred during downloading.");
+            // it is enough to just print an error message here
+            // the error is later handled when validation of the file will fail
         }
     }
 
