@@ -69,6 +69,13 @@ public class IdcDm {
         final Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
         rateLimiter.start();
 
+        // exception handling
+        Thread.UncaughtExceptionHandler exceptionHandler = new Thread.UncaughtExceptionHandler() {
+            public void uncaughtException(Thread th, Throwable ex) {
+                System.out.println("Uncaught exception: " + ex);
+            }
+        };
+
         // get the filesize
         HttpHeadGetter httpHeadGetter = new HttpHeadGetter(url);
         long size = httpHeadGetter.getFileSize();
@@ -111,6 +118,7 @@ public class IdcDm {
                         workerRange,
                         queue,
                         tokenBucket));
+                downloadThread.setUncaughtExceptionHandler(exceptionHandler);
                 downloadThreads.add(downloadThread);
                 downloadThread.start();
             }

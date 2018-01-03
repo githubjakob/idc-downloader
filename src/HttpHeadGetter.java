@@ -1,4 +1,6 @@
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.ProtocolException;
 import java.net.Socket;
 import java.net.URL;
 import java.util.regex.Matcher;
@@ -9,67 +11,33 @@ import java.util.regex.Pattern;
  */
 public class HttpHeadGetter {
 
-    String header = "";
-
     long fileSize = -1;
-
-    int responseStatus = -1;
 
     public long getFileSize() {
         return this.fileSize;
     }
 
     public HttpHeadGetter(URL url) {
-
-        Socket socket = null;
+        final HttpURLConnection httpURLConnection;
         try {
-            socket = new Socket(url.getHost(), 80);
+            httpURLConnection = (HttpURLConnection) url.openConnection();
 
-        BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
-        BufferedInputStream inputStream = new BufferedInputStream(socket.getInputStream());
+            httpURLConnection.setRequestMethod("HEAD");
 
-        final String get = "GET " + url.getPath() + " HTTP/1.1\r\n" +
-                "Host: " + url.getHost() + "\r\n\r\n";
+            int responseCode = httpURLConnection.getResponseCode();
 
-        out.write(get.getBytes());
-        out.flush();
-
-
-        String responseHeader = "";
-        int nextByte;
-        boolean readHeader = true;
-        while (readHeader) {
-            nextByte = inputStream.read();
-            responseHeader = responseHeader + (char) nextByte;
-            if (responseHeader.contains("\r\n\r\n")) {
-                readHeader = false;
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                // TODO
             }
-        }
+            this.fileSize = httpURLConnection.getContentLength();
 
-
-        //extract some usefull information from the header
-
-        Pattern statusPattern = Pattern.compile("HTTP\\/1.1\\s(.*)\\sOK");
-        Matcher statusMatcher = statusPattern.matcher(responseHeader);
-
-        if (statusMatcher.find()) {
-            this.responseStatus = Integer.valueOf(statusMatcher.group(1));
-        }
-
-        Pattern contentLengthPattern = Pattern.compile("Content-Length:\\s(.*)\\r\\n");
-        Matcher contentLengthMatcher = contentLengthPattern.matcher(responseHeader);
-
-        if (contentLengthMatcher.find()) {
-            this.fileSize = Long.valueOf(contentLengthMatcher.group(1));
-        }
-
-        //System.out.println(responseHeader);
+            httpURLConnection.disconnect();
 
         } catch (IOException e) {
             e.printStackTrace();
+
+            // TODO
         }
-
-
     }
 
 }

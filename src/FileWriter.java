@@ -61,11 +61,7 @@ public class FileWriter implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
-
-
 
     @Override
     public void run() {
