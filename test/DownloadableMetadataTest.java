@@ -1,6 +1,9 @@
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 
 /**
@@ -8,10 +11,19 @@ import java.util.List;
  */
 public class DownloadableMetadataTest {
 
+    DownloadableMetadata downloadableMetadata;
+
+    @Before
+    public void init() {
+        try {
+            downloadableMetadata = new DownloadableMetadata(new URL("http://www.test.com/test.avi"), 100);
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Test
     public void getSimpleMissingRage() {
-        DownloadableMetadata downloadableMetadata = new DownloadableMetadata(null, 100);
-
         downloadableMetadata.addRange(new Range(0L, 19L));
         downloadableMetadata.addRange(new Range(80L, 99L));
 
@@ -22,8 +34,6 @@ public class DownloadableMetadataTest {
 
     @Test
     public void getMissingRanges_downloadNotYetStarted() {
-        DownloadableMetadata downloadableMetadata = new DownloadableMetadata(null, 100);
-
         Range result = downloadableMetadata.getMissingRanges().get(0);
 
         Assert.assertEquals(result, new Range(0L,99L));
@@ -31,8 +41,6 @@ public class DownloadableMetadataTest {
 
     @Test
     public void getSimpleMissingRage_2() {
-        DownloadableMetadata downloadableMetadata = new DownloadableMetadata(null, 100);
-
         downloadableMetadata.addRange(new Range(0L, 19L));
         downloadableMetadata.addRange(new Range(80L, 85L));
 
@@ -50,13 +58,10 @@ public class DownloadableMetadataTest {
 
     @Test
     public void getSimpleMissingRage_noMissingRange() {
-        DownloadableMetadata downloadableMetadata = new DownloadableMetadata(null, 100);
-
         downloadableMetadata.addRange(new Range(86L, 99L));
         downloadableMetadata.addRange(new Range(20L, 79L));
         downloadableMetadata.addRange(new Range(0L, 19L));
         downloadableMetadata.addRange(new Range(80L, 85L));
-
 
         List<Range> result = downloadableMetadata.getMissingRanges();
 
@@ -65,8 +70,6 @@ public class DownloadableMetadataTest {
 
     @Test
     public void getSimpleMissingRage_4() {
-        DownloadableMetadata downloadableMetadata = new DownloadableMetadata(null, 100);
-
         downloadableMetadata.addRange(new Range(90L, 99L));
         downloadableMetadata.addRange(new Range(0L, 19L));
         downloadableMetadata.addRange(new Range(20L, 85L));

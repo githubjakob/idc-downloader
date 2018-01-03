@@ -11,33 +11,31 @@ import java.util.*;
  * HINT: avoid the obvious bitmap solution, and think about ranges...
  */
 public class DownloadableMetadata {
+
     private String metadataFilename;
+
     private String filename;
+
     private long fileSize;
 
     List<Range> downloadedRanges = new ArrayList<>();
-
-    /** Instead of Range objects, I prefer to store the already downloaded ranges in a map
-     * the mapping is: first byte -> first free byte / last byte + 1  */
-    TreeMap<Long, Long> pointers = new TreeMap<>();
 
     DownloadableMetadata(URL url, long fileSize) {
         this.filename = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
 
         this.fileSize = fileSize;
 
-        /** terrible hack, mark the lower/upper border of the file size by additional of the ranges
+        /** TODO terrible hack, mark the lower/upper border of the file size by additional of the ranges
          * lower border is: -1 and upper border is: file size */
-        this.addRange(new Range(fileSize, fileSize));
-        this.addRange(new Range(-1L, 0L));
+        this.addRange(new Range(fileSize+1, Long.MAX_VALUE));
+        this.addRange(new Range(Long.MIN_VALUE, -1L));
     }
 
     private static String getMetadataName(String filename) {
         return filename + ".metadata";
     }
 
-    public void addRange(Range range) {
-        this.pointers.put(range.getEnd(), range.getStart());
+    void addRange(Range range) {
         this.downloadedRanges.add(range);
     }
 
@@ -45,10 +43,11 @@ public class DownloadableMetadata {
         return filename;
     }
 
-    long getFileSize() {return fileSize; }
+    long getFileSize() {
+        return fileSize;
+    }
 
     boolean isCompleted() {
-        //TODO
         return false;
     }
 
@@ -57,12 +56,9 @@ public class DownloadableMetadata {
     }
 
     /**
-     * Gets a list of all missing ranges, empty list if no missing ranges
+     * Get a list of all missing ranges, empty list if no missing ranges
      */
     public List<Range> getMissingRanges() {
-
-        updateDownloadedRanges();
-
         List<Range> result = new ArrayList<>();
 
         // sort the downloaded Ranges accoring to the starts
@@ -74,38 +70,22 @@ public class DownloadableMetadata {
             Range first = this.downloadedRanges.get(i);
             Range second = this.downloadedRanges.get(i+1);
 
-            // ... if start and end are two following whole numbers then there is a missing range
-            if (!(first.getEnd().equals(second.getStart() - 1))) {
+            // ... if start and end are not the same numbers then there is a missing range
+            // TODO this "&&" is not so good
+            if (!(first.getEnd().equals(second.getStart() - 1)) && !(first.getEnd().equals(second.getStart()))) {
                 result.add(new Range(first.getEnd() + 1, second.getStart() - 1));
             }
         }
 
-
         return result;
     }
 
-    private void updateDownloadedRanges() {
-
-        for (Map.Entry<Long, Long> entry : this.pointers.entrySet()) {
-            final long beginDownloadedRange = entry.getValue(); // first downloaded byte
-            final long endDownloadedRange = entry.getKey() - 1; // last downloaded byte
-            for (Range range : this.downloadedRanges) {
-                final long rangeStart = range.getStart();
-                if (beginDownloadedRange == rangeStart) {
-                    range.setEnd(endDownloadedRange); //// update the range with the actual downloaed offset
-                    break;
-                }
-            }
-
-        }
-    }
-
-    public void addPointer(long rangeStart) {
-        this.pointers.put(rangeStart, rangeStart);
-    }
-
     public void updateDownloadedRange(long currentPosition, long newPosition) {
-        /** Rename the key -> value pair, where the key is the end of the range and the value is the beginning*/
-        this.pointers.put(newPosition, this.pointers.remove(currentPosition));
+        for (Range range : this.downloadedRanges) {
+            if (range.getEnd() == currentPosition) {
+                range.setEnd(newPosition);
+                break;
+            }
+        }
     }
 }

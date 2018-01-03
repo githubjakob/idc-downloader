@@ -4,6 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
+/**
+ * TODO remove
+ *
+ * use this urls to test
+ * //url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
+ //url = new URL("http://ia600303.us.archive.org/19/items/Mario1_500/Mario1_500.avi");
+ //url = new URL("https://archive.org/download/Mario1_500/Mario1_500.avi");
+ */
 public class IdcDm {
 
     /**
@@ -56,8 +64,6 @@ public class IdcDm {
         URL url;
         try {
             url = new URL(downloadTarget);
-            //url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
-            //url = new URL("http://ia600303.us.archive.org/19/items/Mario1_500/Mario1_500.avi");
         } catch (MalformedURLException e) {
             System.out.println("The Url you entered is not valid. Aborting.");
             return;
@@ -78,7 +84,7 @@ public class IdcDm {
         Thread fileWriter = new Thread(new FileWriter(downloadableMetadata, queue));
         fileWriter.start();
 
-        /* TODO Need to setup the RateLimiter. 
+        /*
          * If maxBytesPerSecond is null then we need to choose some default download speed, or choose one somehow (Inside RateLimiter)
          * 
          * I DON'T UNDERSTAND WHAT DECIDES IF WE HAVE A HARD OR SOFT LIMITER. SO I DON'T KNOW WHAT WILL DIFFERENTIATE
@@ -95,7 +101,7 @@ public class IdcDm {
         for (int n = 0; n < missingRanges.size(); n++) {
             final Range missingRange = missingRanges.get(n);
 
-            long workerRangeLength = missingRange.getLength() / 2;
+            long workerRangeLength = missingRange.getLength() / workersPerMissingRange;
 
             // start workers for every missing range
             for (int i = 0; i < workersPerMissingRange; i++) {
@@ -143,7 +149,7 @@ public class IdcDm {
         } else {
             System.err.println("DownloadableMetadata: File is not valid.");
         }
-        
+
         // Stopping RateLimiter
         tokenBucket.terminate();
 
