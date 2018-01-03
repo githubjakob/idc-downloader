@@ -1,5 +1,8 @@
+import java.io.*;
 import java.net.URL;
 import java.util.*;
+
+import static sun.java2d.cmm.ColorTransform.Out;
 
 /**
  * Describes a file's metadata: URL, file name, size, and which parts already downloaded to disk.
@@ -18,7 +21,7 @@ public class DownloadableMetadata {
 
     private long fileSize;
 
-    List<Range> downloadedRanges = new ArrayList<>();
+    ArrayList<Range> downloadedRanges = new ArrayList<>();
 
     DownloadableMetadata(URL url, long fileSize) {
         this.filename = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
@@ -29,6 +32,32 @@ public class DownloadableMetadata {
          * lower border is: -1 and upper border is: file size */
         this.addRange(new Range(fileSize+1, Long.MAX_VALUE));
         this.addRange(new Range(Long.MIN_VALUE, -1L));
+
+
+
+        File file = new File("meta.metadata");
+        if (file.exists()) {
+
+
+            read(file);
+
+
+        }
+    }
+
+    private void read(File file) {
+        try {
+            FileInputStream fileInputStream = new FileInputStream(file);
+            ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+            this.downloadedRanges = (ArrayList<Range>) objectInputStream.readObject();
+            System.out.println("tonasdfasdf");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private static String getMetadataName(String filename) {
@@ -87,5 +116,24 @@ public class DownloadableMetadata {
                 break;
             }
         }
+        saveToFile();
+    }
+
+    private void saveToFile() {
+        File file = new File("meta.metadata");
+
+        try {
+            FileOutputStream fileOutputStream = new FileOutputStream(file);
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+            objectOutputStream.writeObject(this.downloadedRanges);
+            objectOutputStream.close();
+            fileOutputStream.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }

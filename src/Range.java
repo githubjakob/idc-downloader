@@ -1,7 +1,9 @@
+import java.io.Serializable;
+
 /**
  * Describes a simple range, with a start, an end, and a length
  */
-class Range implements Comparable {
+class Range implements Comparable, Serializable {
     private Long start;
     private Long end;
     private Long length;
@@ -41,6 +43,7 @@ class Range implements Comparable {
     }
 
     public void setEnd(Long end) {
+        this.length += end - this.end;
         this.end = end;
     }
 }

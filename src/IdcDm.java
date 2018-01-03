@@ -92,7 +92,9 @@ public class IdcDm {
          */ 
         
         final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
-        int workersPerMissingRange = numberOfWorkers / missingRanges.size();
+        int workersPerMissingRange = numberOfWorkers / missingRanges.size(); // TODO should always be != 0, if division is 0 set to 1
+
+        // TODO "3/4 problem" - more ranges than workers: keep track of created workers and if workers exceed maxWorkers than skip downloading
 
         // iterate over the missing ranges
 
