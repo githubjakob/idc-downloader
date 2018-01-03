@@ -27,9 +27,7 @@ public class FileWriter implements Runnable {
         while (true) {
             final Chunk chunk = chunkQueue.take();
 
-            if (chunk.isFinishedMarker()) {
-                break;
-            }
+            if (chunk.isFinishedMarker()) break;
 
             long pointerBefore = chunk.getOffset();
             downloadFile.seek(chunk.getOffset()); // set the pointer to the end of the last data chunk

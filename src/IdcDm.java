@@ -33,7 +33,7 @@ public class IdcDm {
             System.err.printf(" limited to %d KBps", maxKBytesPerSecond);
         System.err.printf("...\n");
 
-        final Long maxBytesPerSecond = maxKBytesPerSecond == null ? null : maxKBytesPerSecond * 1000;
+        final Long maxBytesPerSecond = maxKBytesPerSecond != null ? maxKBytesPerSecond * 1000 : null;
 
         DownloadURL(url, numberOfWorkers, maxBytesPerSecond);
     }

@@ -30,26 +30,16 @@ public class HTTPRangeGetter implements Runnable {
 
     private void downloadRange() throws IOException {
 
-        Socket socket = new Socket(url.getHost(), 80);
+        final Socket socket = new Socket(url.getHost(), 80);
 
-        //socket.setSoTimeout(READ_TIMEOUT);
+        final BufferedOutputStream outputStream = new BufferedOutputStream(socket.getOutputStream());
+        final BufferedInputStream inputStream = new BufferedInputStream(socket.getInputStream());
 
-        BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        // do a GET and request a range from the file
+        outputStream.write(getRequest(url, range).getBytes());
+        outputStream.flush();
 
-        BufferedInputStream inputStream = new BufferedInputStream(socket.getInputStream());
-
-        final String get = "GET " + url.getPath() + " HTTP/1.1\r\n" +
-                "Host: " + url.getHost() + "\r\n" +
-                "Range: bytes=" + this.range.getStart() + "-" + this.range.getEnd() +"\r\n\r\n";
-
-        //System.out.println("HTTPRangeGetter: Requesting");
-        //System.out.println(get);
-
-        out.write(get.getBytes());
-        out.flush();
-
-        // strip header of response
+        // strip header from response
         String responseHeader = "";
         int nextByte;
         boolean readHeader = true;
@@ -61,9 +51,6 @@ public class HTTPRangeGetter implements Runnable {
             }
         }
 
-        //System.out.println("HTTPRangeGetter: Got response for query");
-        //System.out.println(responseHeader);
-
         // now get the data
         byte[] buffer = new byte[CHUNK_SIZE];
         int bytesRead;
@@ -71,24 +58,26 @@ public class HTTPRangeGetter implements Runnable {
 
         while(true){
         	tokenBucket.take(CHUNK_SIZE);
+
             bytesRead = inputStream.read(buffer, 0, CHUNK_SIZE);
 
-            if (bytesRead == -1) {
-                break;
-            }
+            if (bytesRead == -1) break;
 
             final Chunk chunk = new Chunk(buffer, offset, bytesRead);
             outQueue.add(chunk);
-            System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
             offset += bytesRead;
+            //System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
         }
 
-        //System.out.println("HttpRangeGetter completed");
-
-        out.close();
-        in.close();
+        outputStream.close();
+        inputStream.close();
         socket.close();
+    }
 
+    private String getRequest(final URL url, final Range range) {
+        return "GET " + url.getPath() + " HTTP/1.1\r\n" +
+                "Host: " + url.getHost() + "\r\n" +
+                "Range: bytes=" + range.getStart() + "-" + range.getEnd() +"\r\n\r\n";
     }
 
     @Override
@@ -96,7 +85,7 @@ public class HTTPRangeGetter implements Runnable {
         try {
             this.downloadRange();
         } catch (IOException e) {
-            System.err.println("HTTPRangeGetter: Error ocurred during downloading, failing safely...");
+            System.err.println("HTTPRangeGetter: Error ocurred during downloading");
             e.printStackTrace();
             //TODO
         }
