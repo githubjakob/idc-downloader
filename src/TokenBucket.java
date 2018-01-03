@@ -19,29 +19,24 @@ class TokenBucket {
 	AtomicBoolean termination;
 	
     TokenBucket() {
-        //TODO
     	tokensAvailable = new AtomicLong();
     	termination = new AtomicBoolean();
     }
 
     synchronized void take(long tokens) {
-        //TODO
     	while (tokens > tokensAvailable.get());
     	tokensAvailable.addAndGet(-tokens);
     }
 
     void terminate() {
-        //TODO
     	termination.set(true);
     }
 
     boolean terminated() {
-        //TODO
         return termination.get();
     }
 
     void set(long tokens) {
-        //TODO
     	tokensAvailable.set(tokens);
     }
     

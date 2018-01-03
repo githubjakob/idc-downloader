@@ -12,8 +12,8 @@ public class IdcDm {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        /*int numberOfWorkers = 1;
-        Long maxBytesPerSecond = null;
+        int numberOfWorkers = 1;
+        Long maxKBytesPerSecond = null;
 
         if (args.length < 1 || args.length > 3) {
             System.err.printf("usage:\n\tjava IdcDm URL [MAX-CONCURRENT-CONNECTIONS] [MAX-DOWNLOAD-LIMIT]\n");
@@ -21,7 +21,7 @@ public class IdcDm {
         } else if (args.length >= 2) {
             numberOfWorkers = Integer.parseInt(args[1]);
             if (args.length == 3)
-                maxBytesPerSecond = Long.parseLong(args[2]);
+                maxKBytesPerSecond = Long.parseLong(args[2]);
         }
 
         String url = args[0];
@@ -29,13 +29,13 @@ public class IdcDm {
         System.err.printf("Downloading");
         if (numberOfWorkers > 1)
             System.err.printf(" using %d connections", numberOfWorkers);
-        if (maxBytesPerSecond != null)
-            System.err.printf(" limited to %d Bps", maxBytesPerSecond);
+        if (maxKBytesPerSecond != null)
+            System.err.printf(" limited to %d KBps", maxKBytesPerSecond);
         System.err.printf("...\n");
 
-        DownloadURL(url, numberOfWorkers, maxBytesPerSecond);*/
+        final Long maxBytesPerSecond = maxKBytesPerSecond == null ? null : maxKBytesPerSecond * 1000;
 
-        DownloadURL(null, 0, 10L);
+        DownloadURL(url, numberOfWorkers, maxBytesPerSecond);
     }
 
     /**
@@ -46,27 +46,28 @@ public class IdcDm {
      *
      * Finally, print "Download succeeded/failed" and delete the metadata as needed.
      *
-     * @param url URL to download
+     * @param downloadTarget URL to download
      * @param numberOfWorkers number of concurrent connections
      * @param maxBytesPerSecond limit on download bytes-per-second
      */
-    private static void DownloadURL(URL url, int numberOfWorkers, Long maxBytesPerSecond) {
+    private static void DownloadURL(String downloadTarget, int numberOfWorkers, Long maxBytesPerSecond) {
 
-        // TODO remove
-        numberOfWorkers = 2;
-
-
+        // parse the url
+        URL url;
         try {
-            url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
+            url = new URL(downloadTarget);
+            //url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
             //url = new URL("http://ia600303.us.archive.org/19/items/Mario1_500/Mario1_500.avi");
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            System.out.println("The Url you entered is not valid. Aborting.");
+            return;
         }
 
         // setup singletons
-        BlockingQueue<Chunk> queue = new ArrayBlockingQueue<Chunk>(1000, true);
-        TokenBucket tokenBucket = new TokenBucket();
-        Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
+        final BlockingQueue<Chunk> queue = new ArrayBlockingQueue<>(1000, true);
+        final TokenBucket tokenBucket = new TokenBucket();
+        final Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
+        rateLimiter.start();
 
         // get the filesize
         HttpHeadGetter httpHeadGetter = new HttpHeadGetter(url);
@@ -92,7 +93,7 @@ public class IdcDm {
         List<Thread> downloadThreads = new ArrayList<>();
 
         for (int n = 0; n < missingRanges.size(); n++) {
-            Range missingRange = missingRanges.get(n);
+            final Range missingRange = missingRanges.get(n);
 
             long workerRangeLength = missingRange.getLength() / 2;
 
@@ -102,12 +103,10 @@ public class IdcDm {
                 long rangeStart = missingRange.getStart() + i * workerRangeLength;
                 long rangeEnd = missingRange.getStart() + (i+1) * workerRangeLength - 1;
 
-                Range workerRange = new Range(rangeStart, rangeEnd);
-
-                //downloadableMetadata.addPointer(rangeStart);
+                final Range workerRange = new Range(rangeStart, rangeEnd);
                 downloadableMetadata.addRange(new Range(rangeStart, rangeStart));
 
-                Thread downloadThread = new Thread(new HTTPRangeGetter(
+                final Thread downloadThread = new Thread(new HTTPRangeGetter(
                         url,
                         workerRange,
                         queue,
@@ -118,7 +117,7 @@ public class IdcDm {
         }
 
         // wait until all threads have completed
-        for (Thread thread : downloadThreads) {
+        for (final Thread thread : downloadThreads) {
             try {
                 thread.join();
             } catch (InterruptedException e) {
@@ -126,13 +125,17 @@ public class IdcDm {
             }
         }
 
-        // send finished marker to queue
-        Chunk finishedChunk = new Chunk(null, 0, 0);
-        finishedChunk.setAsFinishedMarker();
-        queue.add(finishedChunk);
         // validate download
         downloadableMetadata.validateDownload();
-        System.out.println("IdcDm: Done");
 
+        // Stopping FileWriter
+        final Chunk finishedChunk = new Chunk(null, 0, 0);
+        finishedChunk.setAsFinishedMarker();
+        queue.add(finishedChunk);
+
+        // Stopping RateLimiter
+        tokenBucket.terminate();
+
+        System.err.println("IdcDm: Done");
     }
 }

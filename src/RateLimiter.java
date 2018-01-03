@@ -22,7 +22,8 @@ public class RateLimiter implements Runnable {
     	// I ASSUMED THAT WHETHER OR NOT maxBytesPerSecond IS NULL DECIDES IF IT'S SOFT OR HARD
     	
 		while (true) {
-			if (tokenBucket.terminated()) return;
+			if (tokenBucket.terminated()) break;
+
 			// use soft limiter if maxBytesPerSecond smaller than chunk size
 			if (maxBytesPerSecond < HTTPRangeGetter.CHUNK_SIZE) {
 				tokenBucket.add(maxBytesPerSecond);
@@ -36,9 +37,8 @@ public class RateLimiter implements Runnable {
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}	
+			}
 		}
-    	
-    
+		System.out.println("RateLimiter: Exiting.");
     }
 }
