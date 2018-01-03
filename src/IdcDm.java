@@ -69,13 +69,6 @@ public class IdcDm {
         final Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
         rateLimiter.start();
 
-        // exception handling
-        Thread.UncaughtExceptionHandler exceptionHandler = new Thread.UncaughtExceptionHandler() {
-            public void uncaughtException(Thread th, Throwable ex) {
-                System.out.println("Uncaught exception: " + ex);
-            }
-        };
-
         // get the filesize
         HttpHeadGetter httpHeadGetter = new HttpHeadGetter(url);
         long size = httpHeadGetter.getFileSize();
@@ -118,7 +111,6 @@ public class IdcDm {
                         workerRange,
                         queue,
                         tokenBucket));
-                downloadThread.setUncaughtExceptionHandler(exceptionHandler);
                 downloadThreads.add(downloadThread);
                 downloadThread.start();
             }
@@ -133,14 +125,25 @@ public class IdcDm {
             }
         }
 
-        // validate download
-        downloadableMetadata.validateDownload();
-
         // Stopping FileWriter
         final Chunk finishedChunk = new Chunk(null, 0, 0);
         finishedChunk.setAsFinishedMarker();
         queue.add(finishedChunk);
 
+        // wait until the fileWriter has finished
+        try {
+            fileWriter.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // validate download
+        if (downloadableMetadata.getMissingRanges().size() == 0) {
+            System.out.println("DownloadableMetadata: File is valid.");
+        } else {
+            System.err.println("DownloadableMetadata: File is not valid.");
+        }
+        
         // Stopping RateLimiter
         tokenBucket.terminate();
 

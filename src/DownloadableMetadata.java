@@ -107,26 +107,5 @@ public class DownloadableMetadata {
     public void updateDownloadedRange(long currentPosition, long newPosition) {
         /** Rename the key -> value pair, where the key is the end of the range and the value is the beginning*/
         this.pointers.put(newPosition, this.pointers.remove(currentPosition));
-        /*System.out.print("Pointers: ");
-        for (Map.Entry<Long, Long> entry : this.pointers.entrySet()) {
-            System.out.print(entry.getKey() + ", " + entry.getValue() + "\n");
-        }
-        System.out.println("\n");*/
-    }
-
-    public void validateDownload() {
-        try { // wait to make sure all threads are terminated
-            Thread.currentThread().sleep(20L);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        updateDownloadedRanges();
-        List<Range> ranges = getMissingRanges();
-
-        if (ranges.size() == 0) {
-            System.out.println("DownloadableMetadata: File is valid.");
-        } else {
-            System.err.println("DownloadableMetadata: File is not valid.");
-        }
     }
 }
