@@ -44,25 +44,6 @@ public class FileWriter implements Runnable {
         downloadFile.close();
     }
 
-    public void saveMetadata() {
-        System.out.println("Saving Metadata");
-        RandomAccessFile metadataFile = null;
-        try {
-            metadataFile = new RandomAccessFile("meta.metadata", "rw");
-            //// update metadata
-            String meta = "";
-            for (int i = 0; i < this.downloadableMetadata.downloadedRanges.size(); i++) {
-                meta = meta + "Range, start: " + this.downloadableMetadata.downloadedRanges.get(i) + ", end: " + this.downloadableMetadata.downloadedRanges.get(i).getEnd() + "\n";
-            }
-            metadataFile.seek(0);
-            metadataFile.writeBytes(meta);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     @Override
     public void run() {
         try {

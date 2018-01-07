@@ -84,13 +84,6 @@ public class IdcDm {
         final Thread fileWriter = new Thread(new FileWriter(downloadableMetadata, queue));
         fileWriter.start();
         final Thread downloadStatus = new Thread(new DownloadStatus(downloadableMetadata));
-
-        /*
-         * If maxBytesPerSecond is null then we need to choose some default download speed, or choose one somehow (Inside RateLimiter)
-         * 
-         * I DON'T UNDERSTAND WHAT DECIDES IF WE HAVE A HARD OR SOFT LIMITER. SO I DON'T KNOW WHAT WILL DIFFERENTIATE
-         * IT IN THE RateLimiter. IS IT WHETHER OR NOT maxBytesPerSecond IS Null?  
-         */ 
         
         final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
         int workersPerMissingRange = numberOfWorkers / missingRanges.size(); // TODO should always be != 0, if division is 0 set to 1
@@ -150,6 +143,8 @@ public class IdcDm {
 
         // validate download
         if (downloadableMetadata.getMissingRanges().size() == 0) {
+            // clean up metadata files
+            downloadableMetadata.cleanUpMetadata();
             System.out.println("DownloadableMetadata: File is valid.");
         } else {
             System.err.println("DownloadableMetadata: File is not valid.");

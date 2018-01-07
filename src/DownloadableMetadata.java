@@ -48,7 +48,6 @@ public class DownloadableMetadata {
 
         if (checkFileCanRead(file1)) {
             this.thisFile = file1;
-            System.err.println("DownloadableMetadata: Metadata file1 is corrupted, reading file0...");
         } else {
             this.thisFile = file0;
         }
@@ -163,5 +162,12 @@ public class DownloadableMetadata {
             return false;
         }
         return true;
+    }
+
+    public void cleanUpMetadata() {
+        File file0 = new File(this.filenameWithoutExtension + ".meta0");
+        file0.delete();
+        File file1 = new File(this.filenameWithoutExtension + ".meta1");
+        file1.delete();
     }
 }
