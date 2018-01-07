@@ -57,7 +57,7 @@ public class HTTPRangeGetter implements Runnable {
             final Chunk chunk = new Chunk(buffer, offset, bytesRead);
             outQueue.add(chunk);
             offset += bytesRead;
-            System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
+            //System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
         }
 
         inputStream.close();

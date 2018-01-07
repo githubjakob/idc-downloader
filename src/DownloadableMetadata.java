@@ -1,8 +1,7 @@
 import java.io.*;
 import java.net.URL;
 import java.util.*;
-
-import static sun.java2d.cmm.ColorTransform.Out;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Describes a file's metadata: URL, file name, size, and which parts already downloaded to disk.
@@ -15,16 +14,21 @@ import static sun.java2d.cmm.ColorTransform.Out;
  */
 public class DownloadableMetadata {
 
-    private String metadataFilename;
+    private final String filenameWithoutExtension;
 
-    private String filename;
+    private String filenameWithExtension;
 
     private long fileSize;
 
     ArrayList<Range> downloadedRanges = new ArrayList<>();
 
+    File thisFile;
+
+    AtomicBoolean fileCounter = new AtomicBoolean(true);
+
     DownloadableMetadata(URL url, long fileSize) {
-        this.filename = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
+        this.filenameWithExtension = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
+        this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf(".") - 1);
 
         this.fileSize = fileSize;
 
@@ -33,15 +37,20 @@ public class DownloadableMetadata {
         this.addRange(new Range(fileSize+1, Long.MAX_VALUE));
         this.addRange(new Range(Long.MIN_VALUE, -1L));
 
+        /* for safety we persist the metadata alternating in two files
+        * if one is corrupted during saving, the other is still readable */
+        File file0 = new File(this.filenameWithoutExtension + ".meta0");
+        File file1 = new File(this.filenameWithoutExtension + ".meta1");
 
+        if (checkFileCanRead(file1)) {
+            this.thisFile = file1;
+            System.err.println("Metadata file1 is corrupted, reading file0");
+        } else {
+            this.thisFile = file0;
+        }
 
-        File file = new File("meta.metadata");
-        if (file.exists()) {
-
-
-            read(file);
-
-
+        if (thisFile.exists()) {
+            read(thisFile);
         }
     }
 
@@ -50,7 +59,6 @@ public class DownloadableMetadata {
             FileInputStream fileInputStream = new FileInputStream(file);
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
             this.downloadedRanges = (ArrayList<Range>) objectInputStream.readObject();
-            System.out.println("tonasdfasdf");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -68,8 +76,8 @@ public class DownloadableMetadata {
         this.downloadedRanges.add(range);
     }
 
-    String getFilename() {
-        return filename;
+    String getFilenameWithExtension() {
+        return filenameWithExtension;
     }
 
     long getFileSize() {
@@ -120,20 +128,34 @@ public class DownloadableMetadata {
     }
 
     private void saveToFile() {
-        File file = new File("meta.metadata");
-
         try {
+            File file = new File(this.filenameWithoutExtension + ".meta" + (this.fileCounter.get() ? "0" : "1"));
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
             objectOutputStream.writeObject(this.downloadedRanges);
             objectOutputStream.close();
             fileOutputStream.close();
+            this.fileCounter.set(!this.fileCounter.get());
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
-
+    public boolean checkFileCanRead(File file){
+        if (!file.exists())
+            return false;
+        if (!file.canRead())
+            return false;
+        try {
+            FileReader fileReader = new FileReader(file.getAbsolutePath());
+            fileReader.read();
+            fileReader.close();
+        } catch (Exception e) {
+            System.err.println("Exception when checked file can read with message: " + e.getMessage());
+            return false;
+        }
+        return true;
     }
 }
