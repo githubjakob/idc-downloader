@@ -81,8 +81,9 @@ public class IdcDm {
 
         DownloadableMetadata downloadableMetadata = new DownloadableMetadata(url, size);
 
-        Thread fileWriter = new Thread(new FileWriter(downloadableMetadata, queue));
+        final Thread fileWriter = new Thread(new FileWriter(downloadableMetadata, queue));
         fileWriter.start();
+        final Thread downloadStatus = new Thread(new DownloadStatus(downloadableMetadata));
 
         /*
          * If maxBytesPerSecond is null then we need to choose some default download speed, or choose one somehow (Inside RateLimiter)
@@ -123,6 +124,8 @@ public class IdcDm {
                 downloadThread.start();
             }
         }
+
+        downloadStatus.start();
 
         // wait until all threads have completed
         for (final Thread thread : downloadThreads) {

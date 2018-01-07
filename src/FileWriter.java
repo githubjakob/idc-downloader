@@ -32,7 +32,7 @@ public class FileWriter implements Runnable {
             long pointerBefore = chunk.getOffset();
             downloadFile.seek(pointerBefore); // set the pointer to the end of the last data chunk
 
-            System.out.println("FileWriter: Writing Chunk (" + chunk + ") at pointer: " + downloadFile.getFilePointer());
+            //System.out.println("FileWriter: Writing Chunk (" + chunk + ") at pointer: " + downloadFile.getFilePointer());
             downloadFile.write(chunk.getData());
 
             long pointerAfter = downloadFile.getFilePointer() - HTTPRangeGetter.CHUNK_SIZE + chunk.getSize_in_bytes();

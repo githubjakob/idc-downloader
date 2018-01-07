@@ -22,6 +22,8 @@ public class DownloadableMetadata {
 
     ArrayList<Range> downloadedRanges = new ArrayList<>();
 
+    long bytesDownloaded;
+
     File thisFile;
 
     AtomicBoolean fileCounter = new AtomicBoolean(true);
@@ -31,6 +33,8 @@ public class DownloadableMetadata {
         this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf(".") - 1);
 
         this.fileSize = fileSize;
+
+        this.bytesDownloaded = 0;
 
         /** TODO terrible hack, mark the lower/upper border of the file size by additional of the ranges
          * lower border is: -1 and upper border is: file size */
@@ -44,12 +48,13 @@ public class DownloadableMetadata {
 
         if (checkFileCanRead(file1)) {
             this.thisFile = file1;
-            System.err.println("Metadata file1 is corrupted, reading file0");
+            System.err.println("DownloadableMetadata: Metadata file1 is corrupted, reading file0...");
         } else {
             this.thisFile = file0;
         }
 
         if (thisFile.exists()) {
+            System.out.println("DownloadableMetadata: Found a metadata file, continuing download...");
             read(thisFile);
         }
     }
@@ -121,6 +126,7 @@ public class DownloadableMetadata {
         for (Range range : this.downloadedRanges) {
             if (range.getEnd() == currentPosition) {
                 range.setEnd(newPosition);
+                this.bytesDownloaded += newPosition - currentPosition;
                 break;
             }
         }
