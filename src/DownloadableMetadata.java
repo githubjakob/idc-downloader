@@ -26,21 +26,13 @@ public class DownloadableMetadata {
 
     File thisFile;
 
+    /* Flag for alternating between 0 and 1, the downloaded Ranges are saved in two files (extension meta0/meta1) */
     AtomicBoolean fileCounter = new AtomicBoolean(true);
 
     DownloadableMetadata(URL url, long fileSize) {
         this.filenameWithExtension = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
         this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf(".") - 1);
-
         this.fileSize = fileSize;
-
-        this.bytesDownloaded = 0;
-
-        /** TODO terrible hack, mark the lower/upper border of the file size by additional of the ranges
-         * lower border is: -1 and upper border is: file size */
-        this.addRange(new Range(fileSize+1, Long.MAX_VALUE));
-        this.addRange(new Range(Long.MIN_VALUE, -1L));
-
         /* for safety we persist the metadata alternating in two files
         * if one is corrupted during saving, the other is still readable */
         File file0 = new File(this.filenameWithoutExtension + ".meta0");
@@ -56,6 +48,16 @@ public class DownloadableMetadata {
             System.out.println("DownloadableMetadata: Found a metadata file, continuing download...");
             read(thisFile);
         }
+
+        this.bytesDownloaded = initDownloadStatus();
+    }
+
+    private long initDownloadStatus() {
+        long status = 0;
+        for (Range range : this.downloadedRanges) {
+            status += range.getLength();
+        }
+        return status;
     }
 
     private void read(File file) {
@@ -88,28 +90,27 @@ public class DownloadableMetadata {
         return fileSize;
     }
 
-    boolean isCompleted() {
-        return false;
-    }
-
-    void delete() {
-        //TODO
-    }
-
     /**
      * Get a list of all missing ranges, empty list if no missing ranges
      */
     public List<Range> getMissingRanges() {
         List<Range> result = new ArrayList<>();
 
-        // sort the downloaded Ranges accoring to the starts
-        Collections.sort(this.downloadedRanges);
+        List<Range> ranges = (List) this.downloadedRanges.clone();
 
-        for (int i = 0; i < this.downloadedRanges.size() - 1; i++) {
+        /** hack, mark the lower/upper border of the file size by additional of the ranges
+         * lower border is: -1 and upper border is: file size */
+        ranges.add(new Range(fileSize+1, Long.MAX_VALUE));
+        ranges.add(new Range(Long.MIN_VALUE, -1L));
+
+        // sort the downloaded Ranges accoring to the starts
+        Collections.sort(ranges);
+
+        for (int i = 0; i < ranges.size() - 1; i++) {
 
             // for two subsequent Ranges ...
-            Range first = this.downloadedRanges.get(i);
-            Range second = this.downloadedRanges.get(i+1);
+            Range first = ranges.get(i);
+            Range second = ranges.get(i+1);
 
             // ... if start and end are not the same numbers then there is a missing range
             // TODO this "&&" is not so good
