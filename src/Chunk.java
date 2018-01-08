@@ -24,6 +24,11 @@ class Chunk {
     }
 
     byte[] getData() {
+        if (data.length != size_in_bytes) {
+            byte[] truncatedData = new byte[size_in_bytes];
+            System.arraycopy(this.data, 0, truncatedData, 0, size_in_bytes);
+            return truncatedData;
+        }
         return data;
     }
 
