@@ -30,14 +30,11 @@ public class FileWriter implements Runnable {
             if (chunk.isFinishedMarker()) break;
 
             long pointerBefore = chunk.getOffset();
-            downloadFile.seek(pointerBefore); // set the pointer to the end of the last data chunk
 
-            //System.out.println("FileWriter: Writing Chunk (" + chunk + ") at pointer: " + downloadFile.getFilePointer());
+            downloadFile.seek(pointerBefore); // set the pointer to the end of the last data chunk
             downloadFile.write(chunk.getData());
 
-            long pointerAfter = downloadFile.getFilePointer() - HTTPRangeGetter.CHUNK_SIZE + chunk.getSize_in_bytes();
-            downloadFile.seek(pointerAfter); // set the pointer to the end of the last data chunk
-
+            long pointerAfter = downloadFile.getFilePointer();
             downloadableMetadata.updateDownloadedRange(pointerBefore, pointerAfter);
         }
         System.out.println("FileWriter: Found finished marker in queue, closing file.");

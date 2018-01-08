@@ -31,7 +31,7 @@ public class DownloadableMetadata {
 
     DownloadableMetadata(URL url, long fileSize) {
         this.filenameWithExtension = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
-        this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf(".") - 1);
+        this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf("."));
         this.fileSize = fileSize;
         /* for safety we persist the metadata alternating in two files
         * if one is corrupted during saving, the other is still readable */
@@ -72,10 +72,6 @@ public class DownloadableMetadata {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-    }
-
-    private static String getMetadataName(String filename) {
-        return filename + ".metadata";
     }
 
     void addRange(Range range) {
