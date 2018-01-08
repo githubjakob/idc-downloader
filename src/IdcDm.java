@@ -150,8 +150,9 @@ public class IdcDm {
             System.err.println("DownloadableMetadata: File is not valid.");
         }
 
-        // Stopping RateLimiter
+        // Stopping other
         tokenBucket.terminate();
+        downloadStatus.stop();
 
         System.err.println("IdcDm: Done");
     }
