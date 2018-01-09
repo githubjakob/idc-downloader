@@ -3,8 +3,12 @@ import java.io.Serializable;
 /**
  * Describes a simple range, with a start, an end, and a length
  */
-class Range implements Comparable, Serializable {
-    private Long start;
+class Range implements Serializable {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private Long start;
     private Long end;
     private Long length;
 
@@ -27,10 +31,10 @@ class Range implements Comparable, Serializable {
     }
 
     Long getLength() {
-        return end - start + 1;
+        return length;
     }
 
-    @Override
+    /*@Override
     public int compareTo(Object o) {
         Range other = (Range) o;
         return this.getStart().compareTo(other.getStart());
@@ -40,10 +44,15 @@ class Range implements Comparable, Serializable {
     public boolean equals(Object o) {
         Range other = (Range) o;
         return this.getStart().equals(other.getStart()) && this.getEnd().equals(other.getEnd());
-    }
+    }*/
 
     public void setEnd(Long end) {
         this.length += end - this.end;
         this.end = end;
+    }
+    
+    public void setStart(Long start) {
+    	this.length = this.end - start;
+    	this.start = start;
     }
 }

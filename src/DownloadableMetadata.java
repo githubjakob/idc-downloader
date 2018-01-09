@@ -20,7 +20,7 @@ public class DownloadableMetadata {
 
     private long fileSize;
 
-    ArrayList<Range> downloadedRanges = new ArrayList<>();
+    ArrayList<Range> toDownloadRanges = new ArrayList<>();
 
     long bytesDownloaded;
 
@@ -47,24 +47,29 @@ public class DownloadableMetadata {
         if (thisFile.exists()) {
             System.out.println("DownloadableMetadata: Found a metadata file, continuing download...");
             read(thisFile);
+            this.bytesDownloaded = initDownloadStatus();
         }
 
-        this.bytesDownloaded = initDownloadStatus();
+        
     }
 
     private long initDownloadStatus() {
         long status = 0;
-        for (Range range : this.downloadedRanges) {
+        for (Range range : this.toDownloadRanges) {
             status += range.getLength();
         }
-        return status;
+        
+        return this.fileSize - status;
     }
 
     private void read(File file) {
         try {
             FileInputStream fileInputStream = new FileInputStream(file);
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-            this.downloadedRanges = (ArrayList<Range>) objectInputStream.readObject();
+            this.toDownloadRanges = (ArrayList<Range>) objectInputStream.readObject();
+            
+            fileInputStream.close();
+            objectInputStream.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -75,7 +80,7 @@ public class DownloadableMetadata {
     }
 
     void addRange(Range range) {
-        this.downloadedRanges.add(range);
+        this.toDownloadRanges.add(range);
     }
 
     String getFilenameWithExtension() {
@@ -86,16 +91,13 @@ public class DownloadableMetadata {
         return fileSize;
     }
 
-    /**
-     * Get a list of all missing ranges, empty list if no missing ranges
-     */
     public List<Range> getMissingRanges() {
-        List<Range> result = new ArrayList<>();
+        /*List<Range> result = new ArrayList<>();
 
         List<Range> ranges = (List) this.downloadedRanges.clone();
 
-        /** hack, mark the lower/upper border of the file size by additional of the ranges
-         * lower border is: -1 and upper border is: file size */
+        *//** hack, mark the lower/upper border of the file size by additional of the ranges
+         * lower border is: -1 and upper border is: file size *//*
         ranges.add(new Range(fileSize+1, Long.MAX_VALUE));
         ranges.add(new Range(Long.MIN_VALUE, -1L));
 
@@ -115,17 +117,32 @@ public class DownloadableMetadata {
             }
         }
 
-        return result;
+        return result;*/
+    	
+    	return this.toDownloadRanges;
     }
 
     public void updateDownloadedRange(long currentPosition, long newPosition) {
-        for (Range range : this.downloadedRanges) {
-            if (range.getEnd() == currentPosition) {
-                range.setEnd(newPosition);
-                this.bytesDownloaded += newPosition - currentPosition;
-                break;
-            }
+    	/*for (Range range : this.downloadedRanges) {
+        if (range.getEnd() == currentPosition) {
+            range.setEnd(newPosition);
+            this.bytesDownloaded += newPosition - currentPosition;
+            break;
         }
+    	}*/
+    
+	    for (Range range : this.toDownloadRanges) {
+	        if (range.getStart() == currentPosition) {
+	        	if (range.getEnd() == newPosition) {
+	        		// range is unique
+	        		this.toDownloadRanges.remove(range);
+	        	} else {
+		            range.setStart(newPosition);
+		            this.bytesDownloaded += newPosition - currentPosition;
+	        	}
+	        	break;
+	        }
+		}
         saveToFile();
     }
 
@@ -134,7 +151,7 @@ public class DownloadableMetadata {
             File file = new File(this.filenameWithoutExtension + ".meta" + (this.fileCounter.get() ? "0" : "1"));
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-            objectOutputStream.writeObject(this.downloadedRanges);
+            objectOutputStream.writeObject(this.toDownloadRanges);
             objectOutputStream.close();
             fileOutputStream.close();
             this.fileCounter.set(!this.fileCounter.get());

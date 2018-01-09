@@ -6,9 +6,12 @@ import java.util.List;
 public class DownloadStatus implements Runnable  {
 
     private final DownloadableMetadata downloadableMetadata;
-
+    
+    private long percentage;
+    
     DownloadStatus(DownloadableMetadata downloadableMetadata) {
         this.downloadableMetadata = downloadableMetadata;
+        this.percentage = -1;
     }
 
 
@@ -18,8 +21,13 @@ public class DownloadStatus implements Runnable  {
             if (downloadableMetadata.bytesDownloaded >= downloadableMetadata.getFileSize()) {
                 break;
             }
-
-            System.out.println("Percent downloaded: " + downloadableMetadata.bytesDownloaded * 100.0f / downloadableMetadata.getFileSize());
+            
+            long percent = downloadableMetadata.bytesDownloaded * 100 / downloadableMetadata.getFileSize();
+            
+            if (percent != percentage) {
+            	this.percentage = percent;
+            	System.out.println("Downloaded " + percent + "%");
+            }
 
             try {
                 Thread.sleep(2000L);

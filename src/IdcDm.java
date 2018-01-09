@@ -20,8 +20,8 @@ public class IdcDm {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        int numberOfWorkers = 1;
-        Long maxKBytesPerSecond = null;
+    	int numberOfWorkers = 1;
+        Long maxBytesPerSecond = null;
 
         if (args.length < 1 || args.length > 3) {
             System.err.printf("usage:\n\tjava IdcDm URL [MAX-CONCURRENT-CONNECTIONS] [MAX-DOWNLOAD-LIMIT]\n");
@@ -29,7 +29,7 @@ public class IdcDm {
         } else if (args.length >= 2) {
             numberOfWorkers = Integer.parseInt(args[1]);
             if (args.length == 3)
-                maxKBytesPerSecond = Long.parseLong(args[2]);
+                maxBytesPerSecond = Long.parseLong(args[2]);
         }
 
         String url = args[0];
@@ -37,11 +37,11 @@ public class IdcDm {
         System.err.printf("Downloading");
         if (numberOfWorkers > 1)
             System.err.printf(" using %d connections", numberOfWorkers);
-        if (maxKBytesPerSecond != null)
-            System.err.printf(" limited to %d KBps", maxKBytesPerSecond);
+        if (maxBytesPerSecond != null)
+            System.err.printf(" limited to %d KBps", maxBytesPerSecond / 1000);
         System.err.printf("...\n");
 
-        final Long maxBytesPerSecond = maxKBytesPerSecond != null ? maxKBytesPerSecond * 1000 : null;
+        // final Long maxBytesPerSecond = maxKBytesPerSecond != null ? maxKBytesPerSecond * 1000 : null;
 
         DownloadURL(url, numberOfWorkers, maxBytesPerSecond);
     }
@@ -70,7 +70,7 @@ public class IdcDm {
         }
 
         // setup singletons
-        final BlockingQueue<Chunk> queue = new ArrayBlockingQueue<>(1000, true);
+        final BlockingQueue<Chunk> queue = new ArrayBlockingQueue<>(100000, true);
         final TokenBucket tokenBucket = new TokenBucket();
         final Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
         rateLimiter.start();
@@ -86,6 +86,26 @@ public class IdcDm {
         final Thread downloadStatus = new Thread(new DownloadStatus(downloadableMetadata));
         
         final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
+
+	     // A first time download - create the ranges for all workers
+	     if (missingRanges.size() == 0) {
+	     	long rangeSize = size / numberOfWorkers;
+	     	long remainder = size % numberOfWorkers;
+	     	
+	     	for (int i = 0; i < numberOfWorkers; i++) {
+	
+	     		long rangeStart = i * rangeSize;
+	     		long rangeEnd = (i + 1) * rangeSize - 1;
+	
+	     		if (i == numberOfWorkers - 1) {
+	     			rangeEnd += remainder;
+	     		}
+	     		
+	     		Range workerRange = new Range(rangeStart, rangeEnd);
+	     		downloadableMetadata.addRange(workerRange);
+	     	}
+	     }
+        
         int workersPerMissingRange = numberOfWorkers / missingRanges.size(); // TODO should always be != 0, if division is 0 set to 1
 
         // TODO "3/4 problem" - more ranges than workers: keep track of created workers and if workers exceed maxWorkers than skip downloading
@@ -95,28 +115,33 @@ public class IdcDm {
         List<Thread> downloadThreads = new ArrayList<>();
 
         for (int n = 0; n < missingRanges.size(); n++) {
-            final Range missingRange = missingRanges.get(n);
-
-            long workerRangeLength = missingRange.getLength() / workersPerMissingRange;
-
-            // start workers for every missing range
-            for (int i = 0; i < workersPerMissingRange; i++) {
-
-                long rangeStart = missingRange.getStart() + i * workerRangeLength;
-                long rangeEnd = missingRange.getStart() + (i+1) * workerRangeLength - 1;
-
-                final Range workerRange = new Range(rangeStart, rangeEnd);
-                downloadableMetadata.addRange(new Range(rangeStart, rangeStart));
-
-                final Thread downloadThread = new Thread(new HTTPRangeGetter(
-                        url,
-                        workerRange,
-                        queue,
-                        tokenBucket));
-                downloadThreads.add(downloadThread);
-                downloadThread.start();
-            }
-        }
+	     	final Range missingRange = missingRanges.get(n);
+	
+	     	long workerRangeLength = missingRange.getLength() / workersPerMissingRange;
+	     	long remainder = missingRange.getLength() % workersPerMissingRange;
+	
+	     	// start workers for every missing range
+	     	for (int i = 0; i < workersPerMissingRange; i++) {
+	
+	     		long rangeStart = missingRange.getStart() + i * workerRangeLength;
+	     		long rangeEnd = rangeStart + workerRangeLength - 1;
+	
+	     		if (i == workersPerMissingRange - 1) {
+	     			rangeEnd += remainder;
+	     		}
+	     		
+	     		Range workerRange = new Range(rangeStart, rangeEnd);
+	     		// downloadableMetadata.addRange(workerRange);
+	
+	     		Thread downloadThread = new Thread(new HTTPRangeGetter(
+	     				url,
+	     				workerRange,
+	     				queue,
+	     				tokenBucket));
+	     		downloadThreads.add(downloadThread);
+	     		downloadThread.start();
+	     	}
+	     }
 
         downloadStatus.start();
 
@@ -153,6 +178,7 @@ public class IdcDm {
         // Stopping other
         tokenBucket.terminate();
         downloadStatus.stop();
+        downloadableMetadata.cleanUpMetadata();
 
         System.err.println("IdcDm: Done");
     }
