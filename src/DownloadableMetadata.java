@@ -92,48 +92,13 @@ public class DownloadableMetadata {
     }
 
     public List<Range> getMissingRanges() {
-        /*List<Range> result = new ArrayList<>();
-
-        List<Range> ranges = (List) this.downloadedRanges.clone();
-
-        *//** hack, mark the lower/upper border of the file size by additional of the ranges
-         * lower border is: -1 and upper border is: file size *//*
-        ranges.add(new Range(fileSize+1, Long.MAX_VALUE));
-        ranges.add(new Range(Long.MIN_VALUE, -1L));
-
-        // sort the downloaded Ranges accoring to the starts
-        Collections.sort(ranges);
-
-        for (int i = 0; i < ranges.size() - 1; i++) {
-
-            // for two subsequent Ranges ...
-            Range first = ranges.get(i);
-            Range second = ranges.get(i+1);
-
-            // ... if start and end are not the same numbers then there is a missing range
-            // TODO this "&&" is not so good
-            if (!(first.getEnd().equals(second.getStart() - 1)) && !(first.getEnd().equals(second.getStart()))) {
-                result.add(new Range(first.getEnd() + 1, second.getStart() - 1));
-            }
-        }
-
-        return result;*/
-    	
     	return this.toDownloadRanges;
     }
 
     public void updateDownloadedRange(long currentPosition, long newPosition) {
-    	/*for (Range range : this.downloadedRanges) {
-        if (range.getEnd() == currentPosition) {
-            range.setEnd(newPosition);
-            this.bytesDownloaded += newPosition - currentPosition;
-            break;
-        }
-    	}*/
-    
 	    for (Range range : this.toDownloadRanges) {
 	        if (range.getStart() == currentPosition) {
-	        	if (range.getEnd() == newPosition) {
+	        	if (range.getEnd() == newPosition - 1) {
 	        		// range is unique
 	        		this.toDownloadRanges.remove(range);
 	        	} else {

@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -41,8 +42,6 @@ public class IdcDm {
             System.err.printf(" limited to %d KBps", maxBytesPerSecond / 1000);
         System.err.printf("...\n");
 
-        // final Long maxBytesPerSecond = maxKBytesPerSecond != null ? maxKBytesPerSecond * 1000 : null;
-
         DownloadURL(url, numberOfWorkers, maxBytesPerSecond);
     }
 
@@ -76,8 +75,13 @@ public class IdcDm {
         rateLimiter.start();
 
         // get the filesize
-        HttpHeadGetter httpHeadGetter = new HttpHeadGetter(url);
-        long size = httpHeadGetter.getFileSize();
+        long size = 0;
+        try {
+            size = url.openConnection().getContentLengthLong();
+        } catch (IOException e) {
+            //e.printStackTrace();
+            System.out.println("Could not get Filesize");
+        }
 
         DownloadableMetadata downloadableMetadata = new DownloadableMetadata(url, size);
 
@@ -95,7 +99,7 @@ public class IdcDm {
 	     	for (int i = 0; i < numberOfWorkers; i++) {
 	
 	     		long rangeStart = i * rangeSize;
-	     		long rangeEnd = (i + 1) * rangeSize - 1;
+	     		long rangeEnd = ((i + 1) * rangeSize) - 1;
 	
 	     		if (i == numberOfWorkers - 1) {
 	     			rangeEnd += remainder;

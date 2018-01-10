@@ -38,7 +38,7 @@ public class FileWriter implements Runnable {
             downloadableMetadata.updateDownloadedRange(pointerBefore, pointerAfter);
         }
         System.out.println("FileWriter: Found finished marker in queue, closing file.");
-        downloadFile.setLength(this.downloadableMetadata.getFileSize());
+        //downloadFile.setLength(this.downloadableMetadata.getFileSize());
         downloadFile.close();
     }
 

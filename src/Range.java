@@ -8,14 +8,14 @@ class Range implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private Long start;
+	private Long start; // 0 based
     private Long end;
     private Long length;
 
     public Range(Long start, Long end) {
         this.start = start;
         this.end = end;
-        this.length = end - start;
+        this.length = end - start + 1;
     }
 
     void incrementEnd(long offset) {
@@ -33,26 +33,9 @@ class Range implements Serializable {
     Long getLength() {
         return length;
     }
-
-    /*@Override
-    public int compareTo(Object o) {
-        Range other = (Range) o;
-        return this.getStart().compareTo(other.getStart());
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        Range other = (Range) o;
-        return this.getStart().equals(other.getStart()) && this.getEnd().equals(other.getEnd());
-    }*/
-
-    public void setEnd(Long end) {
-        this.length += end - this.end;
-        this.end = end;
-    }
     
     public void setStart(Long start) {
-    	this.length = this.end - start;
+    	this.length = this.end - start + 1;
     	this.start = start;
     }
 }
