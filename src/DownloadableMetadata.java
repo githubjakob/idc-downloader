@@ -149,4 +149,8 @@ public class DownloadableMetadata {
         File file1 = new File(this.filenameWithoutExtension + ".meta1");
         file1.delete();
     }
+
+    public void deleteRange(Range range) {
+        this.toDownloadRanges.remove(range);
+    }
 }

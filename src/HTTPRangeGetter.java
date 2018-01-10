@@ -42,7 +42,8 @@ public class HTTPRangeGetter implements Runnable {
         int responseCode = httpURLConnection.getResponseCode();
 
         if (responseCode != HttpURLConnection.HTTP_PARTIAL) {
-            // TODO
+            System.out.println("HTTPRangeGetter: Unexpected HTTP Status Response.");
+            return;
         }
 
         final BufferedInputStream inputStream = new BufferedInputStream(httpURLConnection.getInputStream());

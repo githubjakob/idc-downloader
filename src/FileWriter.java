@@ -38,7 +38,6 @@ public class FileWriter implements Runnable {
             downloadableMetadata.updateDownloadedRange(pointerBefore, pointerAfter);
         }
         System.out.println("FileWriter: Found finished marker in queue, closing file.");
-        //downloadFile.setLength(this.downloadableMetadata.getFileSize());
         downloadFile.close();
     }
 
@@ -47,10 +46,9 @@ public class FileWriter implements Runnable {
         try {
             this.writeChunks();
         } catch (IOException e) {
-            e.printStackTrace();
-            //TODO
+            System.out.println("FileWriter: IoException occurred.");
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println("FileWriter: InterruptedException occurred.");
         }
     }
 }

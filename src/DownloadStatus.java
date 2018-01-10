@@ -1,5 +1,3 @@
-import java.util.List;
-
 /**
  * Created by jakob on 07.01.18.
  */
@@ -17,7 +15,7 @@ public class DownloadStatus implements Runnable  {
 
     @Override
     public void run() {
-        while (true) {
+        while (!IdcDm.downloadStopped.get()) {
             if (downloadableMetadata.bytesDownloaded >= downloadableMetadata.getFileSize()) {
                 break;
             }
@@ -28,13 +26,6 @@ public class DownloadStatus implements Runnable  {
             	this.percentage = percent;
             	System.out.println("Downloaded " + percent + "%");
             }
-
-            try {
-                Thread.sleep(2000L);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
         }
     }
 }

@@ -4,6 +4,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * TODO remove
@@ -14,6 +15,8 @@ import java.util.concurrent.*;
  //url = new URL("https://archive.org/download/Mario1_500/Mario1_500.avi");
  */
 public class IdcDm {
+
+    public static AtomicBoolean downloadStopped = new AtomicBoolean(false);
 
     /**
      * Receive arguments from the command-line, provide some feedback and start the download.
@@ -80,7 +83,8 @@ public class IdcDm {
             size = url.openConnection().getContentLengthLong();
         } catch (IOException e) {
             //e.printStackTrace();
-            System.out.println("Could not get Filesize");
+            System.out.println("Could not get Filesize.");
+            return;
         }
 
         DownloadableMetadata downloadableMetadata = new DownloadableMetadata(url, size);
@@ -115,7 +119,6 @@ public class IdcDm {
         // TODO "3/4 problem" - more ranges than workers: keep track of created workers and if workers exceed maxWorkers than skip downloading
 
         // iterate over the missing ranges
-
         List<Thread> downloadThreads = new ArrayList<>();
 
         for (int n = 0; n < missingRanges.size(); n++) {
@@ -154,7 +157,8 @@ public class IdcDm {
             try {
                 thread.join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println("Error.");
+                //e.printStackTrace();
             }
         }
 
@@ -167,23 +171,21 @@ public class IdcDm {
         try {
             fileWriter.join();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println("Error.");
+            //e.printStackTrace();
         }
 
         // validate download
         if (downloadableMetadata.getMissingRanges().size() == 0) {
             // clean up metadata files
             downloadableMetadata.cleanUpMetadata();
-            System.out.println("DownloadableMetadata: File is valid.");
+            System.out.println("Download Succeeded.");
         } else {
-            System.err.println("DownloadableMetadata: File is not valid.");
+            System.err.println("Download Failed.");
         }
 
         // Stopping other
+        IdcDm.downloadStopped.set(true);
         tokenBucket.terminate();
-        downloadStatus.stop();
-        downloadableMetadata.cleanUpMetadata();
-
-        System.err.println("IdcDm: Done");
     }
 }
