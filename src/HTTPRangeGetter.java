@@ -43,6 +43,7 @@ public class HTTPRangeGetter implements Runnable {
 
         if (responseCode != HttpURLConnection.HTTP_PARTIAL) {
             System.err.println("HTTPRangeGetter: Unexpected HTTP Status Response.");
+			range.setInUse(false);
             return;
         }
 
