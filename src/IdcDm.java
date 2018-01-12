@@ -138,6 +138,7 @@ public class IdcDm {
 		        conn.connect();
 			} catch (InterruptedException e) {
 				System.err.println("Executor of workers: InterruptedException occured");
+				IdcDm.endDownload();
 			} catch (IOException e) {
 				IdcDm.downloadStopped.set(true);
 				System.err.println("Internet Connection lost");
