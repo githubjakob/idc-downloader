@@ -8,18 +8,14 @@ public class RateLimiter implements Runnable {
     private final TokenBucket tokenBucket;
     private final Long maxBytesPerSecond;
 
-    RateLimiter(TokenBucket tokenBucket, Long maxBytesPerSecond) {
+    public RateLimiter(TokenBucket tokenBucket, Long maxBytesPerSecond) {
         this.tokenBucket = tokenBucket;
         this.maxBytesPerSecond = (maxBytesPerSecond == null) ? Long.MAX_VALUE : maxBytesPerSecond;
     }
 
-    // I AM NOT SURE WHAT SHOULD BE THE CONDITION TO STOP THIS THREAD
     
     @Override
     public void run() {
-        //TODO
-    	
-    	// I ASSUMED THAT WHETHER OR NOT maxBytesPerSecond IS NULL DECIDES IF IT'S SOFT OR HARD
     	
 		while (true) {
 			if (tokenBucket.terminated()) break;
@@ -33,12 +29,12 @@ public class RateLimiter implements Runnable {
 				tokenBucket.set(maxBytesPerSecond);
 			}
     		try {
-				Thread.sleep(1000); // adding maxBps to token bucket every second
+				Thread.sleep(1000); // adding/reseting maxBps to token bucket every second
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err.println("RateLimiter: InterruptedException occured");
+				IdcDm.endDownload();
 			}
 		}
-		System.out.println("RateLimiter: Exiting.");
+		//System.out.println("RateLimiter: Exiting.");
     }
 }

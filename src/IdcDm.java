@@ -1,22 +1,15 @@
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * TODO remove
- *
- * use this urls to test
- * //url = new URL("http://www.engr.colostate.edu/me/facil/dynamics/files/drop.avi");
- //url = new URL("http://ia600303.us.archive.org/19/items/Mario1_500/Mario1_500.avi");
- //url = new URL("https://archive.org/download/Mario1_500/Mario1_500.avi");
- */
 public class IdcDm {
 
     public static AtomicBoolean downloadStopped = new AtomicBoolean(false);
+    final static long rangeSize = 49152; // 48KB
 
     /**
      * Receive arguments from the command-line, provide some feedback and start the download.
@@ -67,7 +60,7 @@ public class IdcDm {
         try {
             url = new URL(downloadTarget);
         } catch (MalformedURLException e) {
-            System.out.println("The Url you entered is not valid. Aborting.");
+            System.err.println("The Url you entered is not valid. Aborting.");
             return;
         }
 
@@ -83,8 +76,8 @@ public class IdcDm {
             size = url.openConnection().getContentLengthLong();
         } catch (IOException e) {
             //e.printStackTrace();
-            System.out.println("Could not get Filesize.");
-            return;
+            System.err.println("Could not get Filesize.");
+            IdcDm.endDownload();
         }
 
         DownloadableMetadata downloadableMetadata = new DownloadableMetadata(url, size);
@@ -95,71 +88,64 @@ public class IdcDm {
         
         final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
 
-	     // A first time download - create the ranges for all workers
-	     if (missingRanges.size() == 0) {
-	     	long rangeSize = size / numberOfWorkers;
-	     	long remainder = size % numberOfWorkers;
-	     	
-	     	for (int i = 0; i < numberOfWorkers; i++) {
-	
-	     		long rangeStart = i * rangeSize;
-	     		long rangeEnd = ((i + 1) * rangeSize) - 1;
-	
-	     		if (i == numberOfWorkers - 1) {
-	     			rangeEnd += remainder;
-	     		}
-	     		
-	     		Range workerRange = new Range(rangeStart, rangeEnd);
-	     		downloadableMetadata.addRange(workerRange);
-	     	}
-	     }
+        // A first time download - create the ranges for all workers using the fixed rangeSize
+	 	if (missingRanges.size() == 0) {
+	 		long numRanges = size / rangeSize;
+		 	long remainder = size % rangeSize;
+		 	
+		 	if (numRanges == 0) {
+		 		long rangeStart = 0;
+				long rangeEnd = size - 1;
+				Range workerRange = new Range(rangeStart, rangeEnd);
+		 		downloadableMetadata.addRange(workerRange);
+		 	} else {
+			 	for (int i = 0; i < numRanges; i++) {
+			
+			 		long rangeStart = i * rangeSize;
+			 		long rangeEnd = ((i + 1) * rangeSize) - 1;
+			
+			 		if (i == numRanges - 1) {
+			 			rangeEnd += remainder;
+			 		}
+			 		
+			 		Range workerRange = new Range(rangeStart, rangeEnd);
+			 		downloadableMetadata.addRange(workerRange);
+			 	}
+		 	}
+	 	} else {
+	 		for (Range range : missingRanges) {
+	 			range.setInUse(false);
+	 		}
+	 	}
         
-        int workersPerMissingRange = numberOfWorkers / missingRanges.size(); // TODO should always be != 0, if division is 0 set to 1
-
-        // TODO "3/4 problem" - more ranges than workers: keep track of created workers and if workers exceed maxWorkers than skip downloading
-
-        // iterate over the missing ranges
-        List<Thread> downloadThreads = new ArrayList<>();
-
-        for (int n = 0; n < missingRanges.size(); n++) {
-	     	final Range missingRange = missingRanges.get(n);
-	
-	     	long workerRangeLength = missingRange.getLength() / workersPerMissingRange;
-	     	long remainder = missingRange.getLength() % workersPerMissingRange;
-	
-	     	// start workers for every missing range
-	     	for (int i = 0; i < workersPerMissingRange; i++) {
-	
-	     		long rangeStart = missingRange.getStart() + i * workerRangeLength;
-	     		long rangeEnd = rangeStart + workerRangeLength - 1;
-	
-	     		if (i == workersPerMissingRange - 1) {
-	     			rangeEnd += remainder;
-	     		}
-	     		
-	     		Range workerRange = new Range(rangeStart, rangeEnd);
-	     		// downloadableMetadata.addRange(workerRange);
-	
-	     		Thread downloadThread = new Thread(new HTTPRangeGetter(
-	     				url,
-	     				workerRange,
-	     				queue,
-	     				tokenBucket));
-	     		downloadThreads.add(downloadThread);
-	     		downloadThread.start();
-	     	}
-	     }
-
-        downloadStatus.start();
-
-        // wait until all threads have completed
-        for (final Thread thread : downloadThreads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                System.out.println("Error.");
-                //e.printStackTrace();
-            }
+	 	downloadStatus.start();
+	 	
+        while (missingRanges.size() != 0) {
+        	ExecutorService executor = Executors.newFixedThreadPool(numberOfWorkers);
+        	
+	        List<Callable<Object>> task = new ArrayList<Callable<Object>>();
+	        Range range;
+	        // Find an unused range to give to a worker
+	        for (int i = 0; i < numberOfWorkers; i++) {
+	        	range = downloadableMetadata.getMissingRange();
+        		if (range == null) break;
+        		task.add(Executors.callable(new HTTPRangeGetter(url, range, queue, tokenBucket)));
+	        }
+	        try {
+				executor.invokeAll(task);
+				// check if there's Internet connection 
+				final URLConnection conn = url.openConnection();
+		        conn.connect();
+			} catch (InterruptedException e) {
+				System.err.println("Executor of workers: InterruptedException occured");
+			} catch (IOException e) {
+				IdcDm.downloadStopped.set(true);
+				System.err.println("Internet Connection lost");
+				executor.shutdown();
+				break;
+			} finally{
+				executor.shutdown();
+			}
         }
 
         // Stopping FileWriter
@@ -171,21 +157,35 @@ public class IdcDm {
         try {
             fileWriter.join();
         } catch (InterruptedException e) {
-            System.out.println("Error.");
-            //e.printStackTrace();
+            System.err.println("FileWriter: InterruptedException occured");
+            IdcDm.endDownload();
         }
+        
+        tokenBucket.terminate();
+        
+        // wait until the rateLimiter has finished
+        try {
+			rateLimiter.join();
+		} catch (InterruptedException e) {
+			System.err.println("RateLimiter: InterruptedException occured");
+			IdcDm.endDownload();
+		}
 
         // validate download
         if (downloadableMetadata.getMissingRanges().size() == 0) {
             // clean up metadata files
             downloadableMetadata.cleanUpMetadata();
-            System.out.println("Download Succeeded.");
+            System.err.println("Download Succeeded.");
         } else {
             System.err.println("Download Failed.");
         }
 
-        // Stopping other
+        // Stopping DownloadStatus
         IdcDm.downloadStopped.set(true);
-        tokenBucket.terminate();
+    }
+    
+    public static void endDownload() {
+    	System.err.println("Download Failed.");
+        System.exit(0);
     }
 }

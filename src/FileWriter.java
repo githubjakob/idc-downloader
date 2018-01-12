@@ -1,5 +1,4 @@
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.concurrent.BlockingQueue;
@@ -15,7 +14,7 @@ public class FileWriter implements Runnable {
     private final BlockingQueue<Chunk> chunkQueue;
     private DownloadableMetadata downloadableMetadata;
 
-    FileWriter(DownloadableMetadata downloadableMetadata, BlockingQueue<Chunk> chunkQueue) {
+    public FileWriter(DownloadableMetadata downloadableMetadata, BlockingQueue<Chunk> chunkQueue) {
         this.chunkQueue = chunkQueue;
         this.downloadableMetadata = downloadableMetadata;
     }
@@ -37,7 +36,7 @@ public class FileWriter implements Runnable {
             long pointerAfter = downloadFile.getFilePointer();
             downloadableMetadata.updateDownloadedRange(pointerBefore, pointerAfter);
         }
-        System.out.println("FileWriter: Found finished marker in queue, closing file.");
+        //System.out.println("FileWriter: Found finished marker in queue, closing file.");
         downloadFile.close();
     }
 
@@ -46,9 +45,11 @@ public class FileWriter implements Runnable {
         try {
             this.writeChunks();
         } catch (IOException e) {
-            System.out.println("FileWriter: IoException occurred.");
+            System.err.println("FileWriter: IoException occurred.");
+            IdcDm.endDownload();
         } catch (InterruptedException e) {
-            System.out.println("FileWriter: InterruptedException occurred.");
+            System.err.println("FileWriter: InterruptedException occurred.");
+            IdcDm.endDownload();
         }
     }
 }

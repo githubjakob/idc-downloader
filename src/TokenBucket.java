@@ -13,34 +13,34 @@
 
 import java.util.concurrent.atomic.*;
 
-class TokenBucket {
+public class TokenBucket {
 
-	AtomicLong tokensAvailable;
-	AtomicBoolean termination;
+	private AtomicLong tokensAvailable;
+	private AtomicBoolean termination;
 	
     TokenBucket() {
     	tokensAvailable = new AtomicLong();
     	termination = new AtomicBoolean();
     }
 
-    synchronized void take(long tokens) {
+    public synchronized void take(long tokens) {
     	while (tokens > tokensAvailable.get());
     	tokensAvailable.addAndGet(-tokens);
     }
 
-    void terminate() {
+    public void terminate() {
     	termination.set(true);
     }
 
-    boolean terminated() {
+    public boolean terminated() {
         return termination.get();
     }
 
-    void set(long tokens) {
+    public void set(long tokens) {
     	tokensAvailable.set(tokens);
     }
     
-    void add(long tokens) {
+    public void add(long tokens) {
     	tokensAvailable.addAndGet(tokens);
     }
     

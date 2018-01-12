@@ -19,7 +19,7 @@ public class HTTPRangeGetter implements Runnable {
     private final BlockingQueue<Chunk> outQueue;
     private TokenBucket tokenBucket;
 
-    HTTPRangeGetter(
+    public HTTPRangeGetter(
             URL url,
             Range range,
             BlockingQueue<Chunk> outQueue,
@@ -42,7 +42,7 @@ public class HTTPRangeGetter implements Runnable {
         int responseCode = httpURLConnection.getResponseCode();
 
         if (responseCode != HttpURLConnection.HTTP_PARTIAL) {
-            System.out.println("HTTPRangeGetter: Unexpected HTTP Status Response.");
+            System.err.println("HTTPRangeGetter: Unexpected HTTP Status Response.");
             return;
         }
 
@@ -70,9 +70,8 @@ public class HTTPRangeGetter implements Runnable {
         try {
             this.downloadRange();
         } catch (IOException e) {
-            System.err.println("HTTPRangeGetter: IOException occurred during downloading.");
-            // it is enough to just print an error message here
-            // the error is later handled when validation of the file will fail
+        	// If a worker fails, we have the pool that will start another thread, taking over the range
+        	range.setInUse(false);
         }
     }
 

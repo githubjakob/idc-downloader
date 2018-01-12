@@ -20,16 +20,16 @@ public class DownloadableMetadata {
 
     private long fileSize;
 
-    ArrayList<Range> toDownloadRanges = new ArrayList<>();
+    private ArrayList<Range> missingRanges = new ArrayList<>();
 
-    long bytesDownloaded;
+    private long bytesDownloaded;
 
-    File thisFile;
+    private File metaFile;
 
     /* Flag for alternating between 0 and 1, the downloaded Ranges are saved in two files (extension meta0/meta1) */
-    AtomicBoolean fileCounter = new AtomicBoolean(true);
+    private AtomicBoolean fileCounter = new AtomicBoolean(true);
 
-    DownloadableMetadata(URL url, long fileSize) {
+    public DownloadableMetadata(URL url, long fileSize) {
         this.filenameWithExtension = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
         this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf("."));
         this.fileSize = fileSize;
@@ -39,48 +39,53 @@ public class DownloadableMetadata {
         File file1 = new File(this.filenameWithoutExtension + ".meta1");
 
         if (checkFileCanRead(file1)) {
-            this.thisFile = file1;
-        } else {
-            this.thisFile = file0;
+            this.metaFile = file1;
+        } else if (checkFileCanRead(file0)){
+            this.metaFile = file0;
         }
 
-        if (thisFile.exists()) {
-            System.out.println("DownloadableMetadata: Found a metadata file, continuing download...");
-            read(thisFile);
+        if (metaFile != null && metaFile.exists()) {
+            System.err.println("Found a metadata file, continuing download...");
+            read(metaFile);
             this.bytesDownloaded = initDownloadStatus();
-        }
-
-        
+        } 
     }
 
     private long initDownloadStatus() {
         long status = 0;
-        for (Range range : this.toDownloadRanges) {
+        for (Range range : this.missingRanges) {
             status += range.getLength();
         }
         
         return this.fileSize - status;
     }
 
-    private void read(File file) {
+    public long getBytesDownloaded() {
+    	return this.bytesDownloaded;
+    }
+    
+    @SuppressWarnings("unchecked") // due to typeCheck warning when casting object to ArrayList
+	private void read(File file) {
         try {
             FileInputStream fileInputStream = new FileInputStream(file);
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-            this.toDownloadRanges = (ArrayList<Range>) objectInputStream.readObject();
-            
+            this.missingRanges = (ArrayList<Range>) objectInputStream.readObject();
             fileInputStream.close();
             objectInputStream.close();
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            System.err.println("DownloadableMetadata: FileNotFoundException Occured");
+            IdcDm.endDownload();
         } catch (IOException e) {
-            e.printStackTrace();
+        	System.err.println("DownloadableMetadata: IOException Occured");
+        	IdcDm.endDownload();
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
+        	System.err.println("DownloadableMetadata: ClassNotFoundException Occured");
+        	IdcDm.endDownload();
+        } 
     }
 
     void addRange(Range range) {
-        this.toDownloadRanges.add(range);
+        this.missingRanges.add(range);
     }
 
     String getFilenameWithExtension() {
@@ -92,15 +97,26 @@ public class DownloadableMetadata {
     }
 
     public List<Range> getMissingRanges() {
-    	return this.toDownloadRanges;
+    	return this.missingRanges;
+    }
+    
+    synchronized public Range getMissingRange() {
+    	
+    	for (Range range : this.missingRanges) {
+    		if (!range.getInUse()) {
+    			range.setInUse(true);
+    			return range;
+    		}
+    	}
+    	return null;
     }
 
-    public void updateDownloadedRange(long currentPosition, long newPosition) {
-	    for (Range range : this.toDownloadRanges) {
+    synchronized public void updateDownloadedRange(long currentPosition, long newPosition) {
+	    for (Range range : this.missingRanges) {
 	        if (range.getStart() == currentPosition) {
 	        	if (range.getEnd() == newPosition - 1) {
 	        		// range is unique
-	        		this.toDownloadRanges.remove(range);
+	        		this.missingRanges.remove(range);
 	        	} else {
 		            range.setStart(newPosition);
 		            this.bytesDownloaded += newPosition - currentPosition;
@@ -116,14 +132,19 @@ public class DownloadableMetadata {
             File file = new File(this.filenameWithoutExtension + ".meta" + (this.fileCounter.get() ? "0" : "1"));
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-            objectOutputStream.writeObject(this.toDownloadRanges);
+            objectOutputStream.writeObject(this.missingRanges);
+            objectOutputStream.flush();
             objectOutputStream.close();
+            fileOutputStream.flush();
             fileOutputStream.close();
+            
             this.fileCounter.set(!this.fileCounter.get());
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            System.err.println("DownloadableMetadata: FileNotFoundException Occured");
+            IdcDm.endDownload();
         } catch (IOException e) {
-            e.printStackTrace();
+        	System.err.println("DownloadableMetadata: IOException Occured");
+        	IdcDm.endDownload();
         }
     }
 
@@ -134,7 +155,11 @@ public class DownloadableMetadata {
             return false;
         try {
             FileReader fileReader = new FileReader(file.getAbsolutePath());
-            fileReader.read();
+            if (fileReader.read() == -1) {
+            	fileReader.close();
+            	return false;
+            }
+            // fileReader.read();
             fileReader.close();
         } catch (Exception e) {
             System.err.println("Exception when checked file can read with message: " + e.getMessage());
@@ -151,6 +176,6 @@ public class DownloadableMetadata {
     }
 
     public void deleteRange(Range range) {
-        this.toDownloadRanges.remove(range);
+        this.missingRanges.remove(range);
     }
 }
