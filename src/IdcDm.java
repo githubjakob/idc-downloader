@@ -1,6 +1,8 @@
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -70,15 +72,37 @@ public class IdcDm {
         downloadStatus.start();
 
         // setup download workers thread pool
-        ExecutorService executor = Executors.newFixedThreadPool(numberOfWorkers);
-        for (int i = 0; i < numberOfWorkers; i++) {
-            executor.execute(new HTTPRangeGetter(url, queue, tokenBucket, downloadableMetadata));
-        }
-        executor.shutdown();
-        try {
-            executor.awaitTermination(12, TimeUnit.HOURS);
-        } catch (InterruptedException e) {
-            IdcDm.exitWithFailure();
+        final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
+
+        while (missingRanges.size() != 0) {
+            ExecutorService executor = Executors.newFixedThreadPool(numberOfWorkers);
+
+            List<Callable<Object>> task = new ArrayList<>();
+            Range range;
+            // Find an unused range to give to a worker
+            for (int i = 0; i < numberOfWorkers; i++) {
+                range = downloadableMetadata.getMissingRange();
+                if (range == null) break;
+                task.add(Executors.callable(new HTTPRangeGetter(url, range, queue, tokenBucket)));
+            }
+            try {
+                executor.invokeAll(task);
+                // check if there's Internet connection
+                final URLConnection conn = url.openConnection();
+                conn.connect();
+            } catch (InterruptedException e) {
+                IdcDm.downloadStopped.set(true);
+                System.err.println("Executor of workers: InterruptedException occurred");
+                executor.shutdown();
+                break;
+            } catch (IOException e) {
+                IdcDm.downloadStopped.set(true);
+                System.err.println("Internet Connection lost");
+                executor.shutdown();
+                break;
+            } finally{
+                executor.shutdown();
+            }
         }
 
         // Stopping FileWriter

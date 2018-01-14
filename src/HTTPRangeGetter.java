@@ -23,19 +23,19 @@ public class HTTPRangeGetter implements Runnable {
 
     private final BlockingQueue<Chunk> outQueue;
 
-    private final DownloadableMetadata downloadableMetadata;
+    private final Range range;
 
     private TokenBucket tokenBucket;
 
     public HTTPRangeGetter(
             URL url,
+            Range range,
             BlockingQueue<Chunk> outQueue,
-            TokenBucket tokenBucket,
-            DownloadableMetadata downloadableMetadata) {
+            TokenBucket tokenBucket) {
         this.url = url;
+        this.range = range;
         this.outQueue = outQueue;
         this.tokenBucket = tokenBucket;
-        this.downloadableMetadata = downloadableMetadata;
     }
 
     private void downloadRange(Range range) throws IOException {
@@ -73,15 +73,11 @@ public class HTTPRangeGetter implements Runnable {
 
     @Override
     public void run() {
-        Range range;
-        // while there are still missing Ranges
-        while ((range = downloadableMetadata.getMissingRange()) != null) {
-            try {
-                this.downloadRange(range);
-            } catch (IOException e) {
-                System.err.println("HTTPRangeGetter: IoException");
-                // downloader will fail safely
-            }
+        try {
+            this.downloadRange(this.range);
+        } catch (IOException e) {
+        	// If a worker fails, we have the pool that will start another thread, taking over the range
+        	range.setInUse(false);
         }
     }
 
