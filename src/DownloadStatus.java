@@ -1,10 +1,13 @@
+/**
+ * Runnable to print out the percentage of already downloaded bytes
+ */
 public class DownloadStatus implements Runnable  {
 
     private final DownloadableMetadata downloadableMetadata;
     
     private long percentage;
     
-    public DownloadStatus(DownloadableMetadata downloadableMetadata) {
+    DownloadStatus(DownloadableMetadata downloadableMetadata) {
         this.downloadableMetadata = downloadableMetadata;
         this.percentage = -1;
     }

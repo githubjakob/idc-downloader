@@ -10,31 +10,38 @@ import java.util.concurrent.BlockingQueue;
  * It supports downloading a range of data, and limiting the download rate using a token bucket.
  */
 public class HTTPRangeGetter implements Runnable {
-    static final int CHUNK_SIZE = 4096;
-    private static final int CONNECT_TIMEOUT = 500;
-    private static final int READ_TIMEOUT = 2000;
-    private static final String GET = "GET";
+
+    static final int CHUNK_SIZE = 4096; // we read in chunks of 4kb from the stream and write it to the file
+
+    private static final int CONNECT_TIMEOUT = 500; // timeout until establishing a connection will fail in ms
+
+    private static final int READ_TIMEOUT = 2000; // timemout during reading from a stream in ms
+
+    private static final String HTTP_GET = "GET"; // get method for the http request
+
     private final URL url;
-    private final Range range;
+
     private final BlockingQueue<Chunk> outQueue;
+
+    private final DownloadableMetadata downloadableMetadata;
+
     private TokenBucket tokenBucket;
 
     public HTTPRangeGetter(
             URL url,
-            Range range,
             BlockingQueue<Chunk> outQueue,
-            TokenBucket tokenBucket) {
+            TokenBucket tokenBucket,
+            DownloadableMetadata downloadableMetadata) {
         this.url = url;
-        this.range = range;
         this.outQueue = outQueue;
         this.tokenBucket = tokenBucket;
+        this.downloadableMetadata = downloadableMetadata;
     }
 
-    private void downloadRange() throws IOException {
-
+    private void downloadRange(Range range) throws IOException {
         final HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
 
-        httpURLConnection.setRequestMethod(GET);
+        httpURLConnection.setRequestMethod(HTTP_GET);
         httpURLConnection.setRequestProperty("Range", "bytes=" + range.getStart() + "-" + range.getEnd());
         httpURLConnection.setConnectTimeout(CONNECT_TIMEOUT);
         httpURLConnection.setReadTimeout(READ_TIMEOUT);
@@ -43,7 +50,7 @@ public class HTTPRangeGetter implements Runnable {
 
         if (responseCode != HttpURLConnection.HTTP_PARTIAL) {
             System.err.println("HTTPRangeGetter: Unexpected HTTP Status Response.");
-			range.setInUse(false);
+            range.setInUse(false);
             return;
         }
 
@@ -51,15 +58,13 @@ public class HTTPRangeGetter implements Runnable {
 
         byte[] buffer = new byte[CHUNK_SIZE];
         int bytesRead;
-        long offset = this.range.getStart();
+        long offset = range.getStart();
 
         while ((bytesRead = inputStream.read(buffer, 0, CHUNK_SIZE)) != -1) {
             tokenBucket.take(CHUNK_SIZE);
-
             final Chunk chunk = new Chunk(buffer, offset, bytesRead);
             outQueue.add(chunk);
             offset += bytesRead;
-            //System.out.println("HTTPRangeGetter: Reading from stream " + bytesRead + ", offset: " + offset);
         }
 
         inputStream.close();
@@ -68,12 +73,17 @@ public class HTTPRangeGetter implements Runnable {
 
     @Override
     public void run() {
-        try {
-            this.downloadRange();
-        } catch (IOException e) {
-        	// If a worker fails, we have the pool that will start another thread, taking over the range
-        	range.setInUse(false);
+        Range range;
+        // while there are still missing Ranges
+        while ((range = downloadableMetadata.getMissingRange()) != null) {
+            try {
+                this.downloadRange(range);
+            } catch (IOException e) {
+                System.err.println("HTTPRangeGetter: IoException");
+                // downloader will fail safely
+            }
         }
     }
+
 
 }

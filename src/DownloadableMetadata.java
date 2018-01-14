@@ -14,9 +14,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class DownloadableMetadata {
 
-    private final String filenameWithoutExtension;
+    /* for safety we persist the metadata alternating in two files
+    * if one is corrupted during saving, the other is still readable */
+    private final File file0;
+
+    private final File file1;
 
     private String filenameWithExtension;
+
+    private final String filenameWithoutExtension;
 
     private long fileSize;
 
@@ -24,7 +30,8 @@ public class DownloadableMetadata {
 
     private long bytesDownloaded;
 
-    private File metaFile;
+    /* fixed Range size to initialize the ranges for the first download */
+    final static long RANGE_SIZE = 491520; //480kb
 
     /* Flag for alternating between 0 and 1, the downloaded Ranges are saved in two files (extension meta0/meta1) */
     private AtomicBoolean fileCounter = new AtomicBoolean(true);
@@ -33,22 +40,59 @@ public class DownloadableMetadata {
         this.filenameWithExtension = url.getFile().substring(url.getFile().lastIndexOf("/")+ 1, url.getFile().length());
         this.filenameWithoutExtension = this.filenameWithExtension.substring(0, this.filenameWithExtension.lastIndexOf("."));
         this.fileSize = fileSize;
-        /* for safety we persist the metadata alternating in two files
-        * if one is corrupted during saving, the other is still readable */
-        File file0 = new File(this.filenameWithoutExtension + ".meta0");
-        File file1 = new File(this.filenameWithoutExtension + ".meta1");
 
-        if (checkFileCanRead(file1)) {
-            this.metaFile = file1;
-        } else if (checkFileCanRead(file0)){
-            this.metaFile = file0;
+        this.file0 = new File(this.filenameWithoutExtension + ".meta0");
+        this.file1 = new File(this.filenameWithoutExtension + ".meta1");
+
+        if (file0.exists() || file1.exists()) {
+            System.err.println("Found a metadata file, continuing download...");
+            read(this.file0);
+            this.bytesDownloaded = initDownloadStatus();
         }
 
-        if (metaFile != null && metaFile.exists()) {
-            System.err.println("Found a metadata file, continuing download...");
-            read(metaFile);
-            this.bytesDownloaded = initDownloadStatus();
-        } 
+        if (missingRanges.size() == 0) {
+            initMissingRanges();
+        }
+
+        setDownloadRangesNotInUse();
+    }
+
+    /**
+     * mark all ranges as not in use before download starts
+     */
+    private void setDownloadRangesNotInUse() {
+        for (Range range : missingRanges) {
+            range.setInUse(false);
+        }
+    }
+
+    /**
+     * A first time download - create the ranges for all workers using the fixed RANGE_SIZE
+     */
+    private void initMissingRanges() {
+
+        long numRanges = this.fileSize / RANGE_SIZE;
+        long remainder = this.fileSize % RANGE_SIZE;
+
+        if (numRanges == 0) { // in case the file size is smaller than the range size
+            long rangeStart = 0;
+            long rangeEnd = this.fileSize - 1;
+            Range workerRange = new Range(rangeStart, rangeEnd);
+            this.addRange(workerRange);
+        } else {
+            for (int i = 0; i < numRanges; i++) {
+
+                long rangeStart = i * RANGE_SIZE;
+                long rangeEnd = ((i + 1) * RANGE_SIZE) - 1;
+
+                if (i == numRanges - 1) {
+                    rangeEnd += remainder;
+                }
+
+                Range workerRange = new Range(rangeStart, rangeEnd);
+                this.addRange(workerRange);
+            }
+        }
     }
 
     private long initDownloadStatus() {
@@ -65,23 +109,21 @@ public class DownloadableMetadata {
     }
     
     @SuppressWarnings("unchecked") // due to typeCheck warning when casting object to ArrayList
-	private void read(File file) {
+    private void read(File file) {
         try {
             FileInputStream fileInputStream = new FileInputStream(file);
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
             this.missingRanges = (ArrayList<Range>) objectInputStream.readObject();
             fileInputStream.close();
             objectInputStream.close();
-        } catch (FileNotFoundException e) {
-            System.err.println("DownloadableMetadata: FileNotFoundException Occured");
-            IdcDm.endDownload();
-        } catch (IOException e) {
-        	System.err.println("DownloadableMetadata: IOException Occured");
-        	IdcDm.endDownload();
-        } catch (ClassNotFoundException e) {
-        	System.err.println("DownloadableMetadata: ClassNotFoundException Occured");
-        	IdcDm.endDownload();
-        } 
+        } catch (ClassNotFoundException|IOException e) {
+           if (file == this.file0) { // try other file
+               System.out.println("trying other file");
+               read(this.file1);
+           }
+        	System.err.println("DownloadableMetadata: IOException/ClassNotFoundExcpetion occured reading file");
+        	IdcDm.exitWithFailure();
+        }
     }
 
     void addRange(Range range) {
@@ -96,12 +138,11 @@ public class DownloadableMetadata {
         return fileSize;
     }
 
-    public List<Range> getMissingRanges() {
+    synchronized public List<Range> getMissingRanges() {
     	return this.missingRanges;
     }
     
     synchronized public Range getMissingRange() {
-    	
     	for (Range range : this.missingRanges) {
     		if (!range.getInUse()) {
     			range.setInUse(true);
@@ -127,45 +168,30 @@ public class DownloadableMetadata {
         saveToFile();
     }
 
-    private void saveToFile() {
+    synchronized private void saveToFile() {
+        File file = new File(this.filenameWithoutExtension + ".meta" + (this.fileCounter.get() ? "0" : "1"));
+        ObjectOutputStream objectOutputStream = null;
         try {
-            File file = new File(this.filenameWithoutExtension + ".meta" + (this.fileCounter.get() ? "0" : "1"));
-            FileOutputStream fileOutputStream = new FileOutputStream(file);
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+            objectOutputStream = new ObjectOutputStream(new FileOutputStream(file));
             objectOutputStream.writeObject(this.missingRanges);
             objectOutputStream.flush();
-            objectOutputStream.close();
-            fileOutputStream.flush();
-            fileOutputStream.close();
-            
             this.fileCounter.set(!this.fileCounter.get());
         } catch (FileNotFoundException e) {
-            System.err.println("DownloadableMetadata: FileNotFoundException Occured");
-            IdcDm.endDownload();
+            System.err.println("DownloadableMetadata: FileNotFoundException occurred");
+            IdcDm.exitWithFailure();
         } catch (IOException e) {
-        	System.err.println("DownloadableMetadata: IOException Occured");
-        	IdcDm.endDownload();
-        }
-    }
-
-    public boolean checkFileCanRead(File file){
-        if (!file.exists())
-            return false;
-        if (!file.canRead())
-            return false;
-        try {
-            FileReader fileReader = new FileReader(file.getAbsolutePath());
-            if (fileReader.read() == -1) {
-            	fileReader.close();
-            	return false;
+        	System.err.println("DownloadableMetadata: IOException occurred during saving file");
+        	IdcDm.exitWithFailure();
+        } finally {
+            if (objectOutputStream != null) {
+                try {
+                    objectOutputStream.close();
+                } catch (IOException ex) {
+                    // ignore
+                }
             }
-            // fileReader.read();
-            fileReader.close();
-        } catch (Exception e) {
-            System.err.println("Exception when checked file can read with message: " + e.getMessage());
-            return false;
+
         }
-        return true;
     }
 
     public void cleanUpMetadata() {
@@ -173,9 +199,5 @@ public class DownloadableMetadata {
         file0.delete();
         File file1 = new File(this.filenameWithoutExtension + ".meta1");
         file1.delete();
-    }
-
-    public void deleteRange(Range range) {
-        this.missingRanges.remove(range);
     }
 }

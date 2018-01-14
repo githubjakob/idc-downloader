@@ -13,7 +13,6 @@ public class RateLimiter implements Runnable {
         this.maxBytesPerSecond = (maxBytesPerSecond == null) ? Long.MAX_VALUE : maxBytesPerSecond;
     }
 
-    
     @Override
     public void run() {
     	
@@ -32,9 +31,8 @@ public class RateLimiter implements Runnable {
 				Thread.sleep(1000); // adding/reseting maxBps to token bucket every second
 			} catch (InterruptedException e) {
 				System.err.println("RateLimiter: InterruptedException occured");
-				IdcDm.endDownload();
+				IdcDm.exitWithFailure();
 			}
 		}
-		//System.out.println("RateLimiter: Exiting.");
     }
 }

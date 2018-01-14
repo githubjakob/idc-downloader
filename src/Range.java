@@ -6,43 +6,43 @@ import java.io.Serializable;
 class Range implements Serializable {
     
 	private static final long serialVersionUID = 1L;
-	private Long start; // 0 based
-    private Long end;
-    private Long length;
-    private Boolean inUse;
 
-    public Range(Long start, Long end) {
+	private Long start; // 0 based
+
+    private Long end;
+
+    private Long length;
+
+    private Boolean inUse; // true, when rangeGetter is download this range, false otherwise
+
+    Range(Long start, Long end) {
         this.start = start;
         this.end = end;
         this.length = end - start + 1;
         this.inUse = false;
     }
 
-    public void incrementEnd(long offset) {
-        this.end += offset;
-    }
-
-    public Long getStart() {
+    Long getStart() {
         return this.start;
     }
 
-    public Long getEnd() {
+    Long getEnd() {
         return this.end;
     }
 
-    public Long getLength() {
+    Long getLength() {
         return this.length;
     }
-    
-    public Boolean getInUse() {
+
+    Boolean getInUse() {
     	return this.inUse;
     }
     
-    public void setInUse(Boolean bool) {
+    void setInUse(Boolean bool) {
     	this.inUse = bool;
     }
     
-    public void setStart(Long start) {
+    void setStart(Long start) {
     	this.length = this.end - start + 1;
     	this.start = start;
     }

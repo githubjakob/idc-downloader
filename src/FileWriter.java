@@ -46,10 +46,10 @@ public class FileWriter implements Runnable {
             this.writeChunks();
         } catch (IOException e) {
             System.err.println("FileWriter: IoException occurred.");
-            IdcDm.endDownload();
+            IdcDm.exitWithFailure();
         } catch (InterruptedException e) {
             System.err.println("FileWriter: InterruptedException occurred.");
-            IdcDm.endDownload();
+            IdcDm.exitWithFailure();
         }
     }
 }

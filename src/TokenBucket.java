@@ -10,7 +10,6 @@
  * - terminated(): return true if the bucket is terminated, false otherwise
  *
  */
-
 import java.util.concurrent.atomic.*;
 
 public class TokenBucket {

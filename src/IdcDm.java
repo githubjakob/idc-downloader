@@ -1,15 +1,12 @@
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class IdcDm {
 
     public static AtomicBoolean downloadStopped = new AtomicBoolean(false);
-    final static long rangeSize = 49152; // 48KB
 
     /**
      * Receive arguments from the command-line, provide some feedback and start the download.
@@ -55,100 +52,33 @@ public class IdcDm {
      */
     private static void DownloadURL(String downloadTarget, int numberOfWorkers, Long maxBytesPerSecond) {
 
-        // parse the url
-        URL url;
-        try {
-            url = new URL(downloadTarget);
-        } catch (MalformedURLException e) {
-            System.err.println("The Url you entered is not valid. Aborting.");
-            return;
-        }
+        final URL url = parseUrl(downloadTarget);
+        if (url == null) return;
 
-        // setup singletons
+        Long size = getFileSize(url);
+        if (size == null) return;
+
+        // setup objects
         final BlockingQueue<Chunk> queue = new ArrayBlockingQueue<>(100000, true);
         final TokenBucket tokenBucket = new TokenBucket();
         final Thread rateLimiter = new Thread(new RateLimiter(tokenBucket, maxBytesPerSecond));
         rateLimiter.start();
-
-        // get the filesize
-        long size = 0;
-        try {
-            size = url.openConnection().getContentLengthLong();
-        } catch (IOException e) {
-            //e.printStackTrace();
-            System.err.println("Could not get Filesize.");
-            IdcDm.endDownload();
-        }
-
-        DownloadableMetadata downloadableMetadata = new DownloadableMetadata(url, size);
-
+        final DownloadableMetadata downloadableMetadata = new DownloadableMetadata(url, size);
         final Thread fileWriter = new Thread(new FileWriter(downloadableMetadata, queue));
         fileWriter.start();
         final Thread downloadStatus = new Thread(new DownloadStatus(downloadableMetadata));
-        
-        final List<Range> missingRanges = downloadableMetadata.getMissingRanges();
+        downloadStatus.start();
 
-        // A first time download - create the ranges for all workers using the fixed rangeSize
-	 	if (missingRanges.size() == 0) {
-	 		long numRanges = size / rangeSize;
-		 	long remainder = size % rangeSize;
-		 	
-		 	if (numRanges == 0) {
-		 		long rangeStart = 0;
-				long rangeEnd = size - 1;
-				Range workerRange = new Range(rangeStart, rangeEnd);
-		 		downloadableMetadata.addRange(workerRange);
-		 	} else {
-			 	for (int i = 0; i < numRanges; i++) {
-			
-			 		long rangeStart = i * rangeSize;
-			 		long rangeEnd = ((i + 1) * rangeSize) - 1;
-			
-			 		if (i == numRanges - 1) {
-			 			rangeEnd += remainder;
-			 		}
-			 		
-			 		Range workerRange = new Range(rangeStart, rangeEnd);
-			 		downloadableMetadata.addRange(workerRange);
-			 	}
-		 	}
-	 	} else {
-	 		for (Range range : missingRanges) {
-	 			range.setInUse(false);
-	 		}
-	 	}
-        
-	 	downloadStatus.start();
-	 	
-        while (missingRanges.size() != 0) {
-        	ExecutorService executor = Executors.newFixedThreadPool(numberOfWorkers);
-        	
-	        List<Callable<Object>> task = new ArrayList<Callable<Object>>();
-	        Range range;
-	        // Find an unused range to give to a worker
-	        for (int i = 0; i < numberOfWorkers; i++) {
-	        	range = downloadableMetadata.getMissingRange();
-        		if (range == null) break;
-        		task.add(Executors.callable(new HTTPRangeGetter(url, range, queue, tokenBucket)));
-	        }
-	        try {
-				executor.invokeAll(task);
-				// check if there's Internet connection 
-				final URLConnection conn = url.openConnection();
-		        conn.connect();
-			} catch (InterruptedException e) {
-				IdcDm.downloadStopped.set(true);
-				System.err.println("Executor of workers: InterruptedException occured");
-				executor.shutdown();
-				break;
-			} catch (IOException e) {
-				IdcDm.downloadStopped.set(true);
-				System.err.println("Internet Connection lost");
-				executor.shutdown();
-				break;
-			} finally{
-				executor.shutdown();
-			}
+        // setup download workers thread pool
+        ExecutorService executor = Executors.newFixedThreadPool(numberOfWorkers);
+        for (int i = 0; i < numberOfWorkers; i++) {
+            executor.execute(new HTTPRangeGetter(url, queue, tokenBucket, downloadableMetadata));
+        }
+        executor.shutdown();
+        try {
+            executor.awaitTermination(12, TimeUnit.HOURS);
+        } catch (InterruptedException e) {
+            IdcDm.exitWithFailure();
         }
 
         // Stopping FileWriter
@@ -160,8 +90,7 @@ public class IdcDm {
         try {
             fileWriter.join();
         } catch (InterruptedException e) {
-            System.err.println("FileWriter: InterruptedException occured");
-            IdcDm.endDownload();
+            IdcDm.exitWithFailure();
         }
         
         tokenBucket.terminate();
@@ -170,8 +99,8 @@ public class IdcDm {
         try {
 			rateLimiter.join();
 		} catch (InterruptedException e) {
-			System.err.println("RateLimiter: InterruptedException occured");
-			IdcDm.endDownload();
+			System.err.println("RateLimiter: InterruptedException occurred");
+			IdcDm.exitWithFailure();
 		}
 
         // validate download
@@ -187,8 +116,26 @@ public class IdcDm {
         IdcDm.downloadStopped.set(true);
     }
     
-    public static void endDownload() {
+    public static void exitWithFailure() {
     	System.err.println("Download Failed.");
         System.exit(0);
+    }
+
+    private static Long getFileSize(URL url) {
+        try {
+            return url.openConnection().getContentLengthLong();
+        } catch (IOException e) {
+            System.out.println("Could not get Filesize.");
+            return null;
+        }
+    }
+
+    private static URL parseUrl(String downloadTarget) {
+        try {
+            return new URL(downloadTarget);
+        } catch (MalformedURLException e) {
+            System.out.println("The Url you entered is not valid.");
+            return null;
+        }
     }
 }
