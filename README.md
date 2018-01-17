@@ -1,6 +1,6 @@
-#idc-downloader
+# idc-downloader
 
-Multi-threaded download manager with bandwidth limit
+Multi-threaded java download manager with bandwidth limit
 
 The project was developed as part of the "Computer Networks" at IDC Herzliya in Winter 2017/2018.
 
